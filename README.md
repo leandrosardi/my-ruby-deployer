@@ -4,45 +4,117 @@
 
 1. [Pampa Workers](https://github.com/leandrosardi/pampa),
 2. [Pampa Dispatchers](https://github.com/leandrosardi/pampa_dispatchers), and
-3. [Tempora Webservers](https://github.com/leandrosardi/tempora) (private servers).
+3. [Tempora](https://github.com/leandrosardi/tempora).
 
-Once installed, Capistrano gives you a cap tool to perform your deployments from the comfort of your command line.
+Once installed, **Pampa Deployer** gives you a cap tool to perform your deployments from the comfort of your command line.
 
-# Installation
+## Why Not Capistrano?
+
+[**Capistrano**](https://capistranorb.com/) is not fully supporting [**Sinatra**](http://sinatrarb.com/) or it is not well documented about.
+
+[**Sinatra**](http://sinatrarb.com/) is used by our [**Tempora**](https://github.com/leandrosardi/tempora) e-commerce.
+
+# 1. Installation
 
 ```cmd
 gem install pampa_deployer
 ```
 
-# Features
+# 2. Features
 
 **Pampa Deployer** automates what you already know how to do manually, but in a repeatable, scalable fashion. There is no magic here!
 
-Here's what makes Capistrano great:
+Here's what makes **Pampa Deployer** great:
 
 **Strong conventions**
-Capistrano defines a standard deployment process that all Capistrano-enabled projects follow by default. You don't have to decide how to structure your scripts, where deployed files should be placed on the server, or how to perform common tasks: Capistrano has done this work for you.
+**Pampa Deployer** defines a standard deployment process that all **Pampa Deployer**-enabled projects follow by default. You don't have to decide how to structure your scripts, where deployed files should be placed on the server, or how to perform common tasks: **Pampa Deployer** has done this work for you.
 
 **Multiple stages**
 Define your deployment once, and then easily parameterize it for multiple stages (environments), e.g. qa, staging, and production. No copy-and-paste necessary: you only need to specify what is different for each stage, like IP addresses.
 
 **Parallel execution**
-Deploying to a fleet of app servers? Capistrano can run each deployment task concurrently across those servers and uses connection pooling for speed.
+Deploying to a fleet of app servers? **Pampa Deployer** can run each deployment task concurrently across those servers and uses connection pooling for speed.
 
 **Server roles**
-Your application may need many different types of servers: a database server, an app server, two web servers, and a job queue work server, for example. Capistrano lets you tag each server with one or more roles, so you can control what tasks are executed where.
+Your application may need many different types of servers: a database server, an app server, two web servers, and a job queue work server, for example. **Pampa Deployer** lets you tag each server with one or more roles, so you can control what tasks are executed where.
 
 **REST-API based**
-Everything in Capistrano comes down to running SSH commands on remote servers. On the one hand, that makes Capistrano simple. On the other hand, if you aren't comfortable SSH-ing into a Linux box and doing stuff on the command-line, then Capistrano is probably not for you.
+Everything in **Pampa Deployer** comes down to running SSH commands on remote servers. On the one hand, that makes **Pampa Deployer** simple. On the other hand, if you aren't comfortable SSH-ing into a Linux box and doing stuff on the command-line, then **Pampa Deployer** is probably not for you.
 
-## Sequences
+# 3. Repo Access Configuration
 
-**Developer**
-1. push new version
-	- source code
-	- sequel migration
-	- gems
-2. push deploy request via access point
+```ruby
+BlackStack::Deployer.set({
+	:github_repo_url => 'https://github.com/leandrosardi/tempora', 
+	:github_auth_token => '....',
+	# different kind of servers will follow different sequences
+	:roles => [
+		{
+			:name => 'central',
+			:hostname => /kepler/i,
+			:run_after => nil,
+			:pull_source_code => true,
+			:update_secret_file => true, # with backup
+			:perform_sequel_migrations => true, 
+			:update_bundler => true,
+			:restart_puma => true,
+			:kill_processes_script => './batch/kill.bat',
+			:start_process_script => './batch/app.kepler.bat',
+		},
+		{
+			:name => 'divisions',
+			:hostname => /euler/i,
+			# ...
+		},
+		{
+			:name => 'jobs-and-dispatchers',
+			:hostname => /copernico/i,
+			# ...
+		},
+		{
+			:name => 'bots',
+			:hostname => /gauss/i,
+			# ...
+		},
+	]
+})
+```
+
+# 4. Pushing a New Version
+
+Usually, **developers** push new code to the `master` branch with one or more of these:
+
+1. new source code;
+2. sequel migrations;
+3. new version of the bundler file;
+3. gems in the `tempora/gems` folder.
+
+The method `BlackStack::Deployer.push` creates a new tag, and creates a request deploy request via access point
+
+```ruby
+# this line create a new deploy request
+BlackStack::Deployer.push({
+	# create/update the ./version.rb file with the line `BLACKSTACK_VERSION = 'x.x.x'` before commit and push.
+	# create this tag in the repository after commit and push.
+	:version => '1.2.4', 
+	# do the `git update` to this branch. 
+	:branch => 'master', 
+	# modifications to the database
+	:migrations => [
+		'./sql/1.sql',
+		'./sql/2.sql',
+		'./sql/3.sql',
+	],
+	# run bundler?
+	:update_public_gems => true,
+	# update private gems?
+	:update_private_gems => [
+		'stealth_browser_automation', 
+		'nextbot', 
+		'bots'
+	]
+})
+```
 
 **Kepler (central) - shm.rb**
 1. poll deploy requests
