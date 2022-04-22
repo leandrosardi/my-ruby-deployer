@@ -1,155 +1,155 @@
 # Pampa Deployer
 
-**Pampa Deployer** is a simple library  for building automated deployment scripts of 
+**Pampa Deployer** releases new code versions along a pool of **[Pampa Workers](https://github.com/leandrosardi/pampa)**.
 
-1. [Pampa Workers](https://github.com/leandrosardi/pampa),
-2. [Pampa Dispatchers](https://github.com/leandrosardi/pampa_dispatchers), and
-3. [Tempora](https://github.com/leandrosardi/tempora).
+Note that any **deployer** works with a direct connection to the database. All the examples below will work this way.  
 
-Once installed, **Pampa Deployer** gives you a cap tool to perform your deployments from the comfort of your command line.
+On the other hand, **workers** may be distributed worldwide, and don't require direct connection to the database.
 
-## Why Not Capistrano?
+# 1. Getting Started
 
-[**Capistrano**](https://capistranorb.com/) is not fully supporting [**Sinatra**](http://sinatrarb.com/) or it is not well documented about.
-
-[**Sinatra**](http://sinatrarb.com/) is used by our [**Tempora**](https://github.com/leandrosardi/tempora) e-commerce.
-
-# 1. Installation
+## 1.1. Installation
 
 ```cmd
 gem install pampa_deployer
 ```
 
-# 2. Features
+The **Pampa Deployer** gem requires **[Sequel](https://sequel.jeremyevans.net/)** 4.28.0.
 
-**Pampa Deployer** automates what you already know how to do manually, but in a repeatable, scalable fashion. There is no magic here!
+## 1.2. Configuring Database Installation Jobs
 
-Here's what makes **Pampa Deployer** great:
+**Database Installation** is about creating the schema of the database (tables, indexes, keys, triggers, store procedures, etc.)
 
-**Strong conventions**
-**Pampa Deployer** defines a standard deployment process that all **Pampa Deployer**-enabled projects follow by default. You don't have to decide how to structure your scripts, where deployed files should be placed on the server, or how to perform common tasks: **Pampa Deployer** has done this work for you.
-
-**Multiple stages**
-Define your deployment once, and then easily parameterize it for multiple stages (environments), e.g. qa, staging, and production. No copy-and-paste necessary: you only need to specify what is different for each stage, like IP addresses.
-
-**Parallel execution**
-Deploying to a fleet of app servers? **Pampa Deployer** can run each deployment task concurrently across those servers and uses connection pooling for speed.
-
-**Server roles**
-Your application may need many different types of servers: a database server, an app server, two web servers, and a job queue work server, for example. **Pampa Deployer** lets you tag each server with one or more roles, so you can control what tasks are executed where.
-
-**REST-API based**
-Everything in **Pampa Deployer** comes down to running SSH commands on remote servers. On the one hand, that makes **Pampa Deployer** simple. On the other hand, if you aren't comfortable SSH-ing into a Linux box and doing stuff on the command-line, then **Pampa Deployer** is probably not for you.
-
-# 3. Repo Access Configuration
+First, setup your installation job, by specifing one by one the `.sql` scripts to run.
 
 ```ruby
 BlackStack::Deployer.set({
-	:github_repo_url => 'https://github.com/leandrosardi/tempora', 
-	:github_auth_token => '....',
-	# different kind of servers will follow different sequences
-	:roles => [
-		{
-			:name => 'central',
-			:hostname => /kepler/i,
-			:run_after => nil,
-			:pull_source_code => true,
-			:update_secret_file => true, # with backup
-			:perform_sequel_migrations => true, 
-			:update_bundler => true,
-			:restart_puma => true,
-			:kill_processes_script => './batch/kill.bat',
-			:start_process_script => './batch/app.kepler.bat',
-		},
-		{
-			:name => 'divisions',
-			:hostname => /euler/i,
-			# ...
-		},
-		{
-			:name => 'jobs-and-dispatchers',
-			:hostname => /copernico/i,
-			# ...
-		},
-		{
-			:name => 'bots',
-			:hostname => /gauss/i,
-			# ...
-		},
-	]
-})
+  # Scripts to install the database schema.
+  # List them in the order they must be executed.
+  # By convention, filenames for installation must match with `/^0./`.
+  :database_installation_files=>[
+    { 
+      :filename=>'./sql/0.a.base-schema.ddl.tsql.sql', 
+      :critical=>true, 
+      :description=>'All the objects, excel the full-text indexes who are not supported by SQLExpress. This file is critical to keep running the deploying process.', 
+    },
+    { 
+      :filename=>'./sql/0.b.full-text-indexes.ddl.tsql.sql', 
+      :critical=>false, 
+      :description=>'All the full-text indexes, who are not supported by SQLExpress. Deploying process may keep running even if this file finishes with errors.',
+    },    
+  ],
+});
 ```
 
-# 4. Pushing a New Version
+Set the `:critical` flag in `true` if you want to abort the job if such a file doesn't finish successfully.  
 
-Usually, **developers** push new code to the `master` branch with one or more of these:
+The values in the `:filename` entries should match with either `/\.tsql\./` or `/\.sentences\./`.
 
-1. new source code;
-2. sequel migrations;
-3. new version of the bundler file;
-3. gems in the `tempora/gems` folder.
+1. The `/\.tsql\./` files will be processsed each transact-sql codes one by one; each one separated by a `GO` statement
 
-The method `BlackStack::Deployer.push` creates a new tag, and creates a request deploy request via access point
+2. The `/\.sentences\./` files will be processed line by line, assuming that each line is one sentence. Example: a list of insert statements.
+
+As a final note, values in the `:filename` entries should match with `/^0\./` when you are defining the **database installation** job.
+
+## 1.3. Running Database Installation Jobs
+
+Then, write a little script to run the installation.
+
+The code below is incomplete. 
+Find the full example here: [./examples/install.rb](./examples/install.rb).
 
 ```ruby
-# this line create a new deploy request
-BlackStack::Deployer.push({
-	# create/update the ./version.rb file with the line `BLACKSTACK_VERSION = 'x.x.x'` before commit and push.
-	# create this tag in the repository after commit and push.
-	:version => '1.2.4', 
-	# do the `git update` to this branch. 
-	:branch => 'master', 
-	# modifications to the database
-	:migrations => [
-		'./sql/1.sql',
-		'./sql/2.sql',
-		'./sql/3.sql',
-	],
-	# run bundler?
-	:update_public_gems => true,
-	# update private gems?
-	:update_private_gems => [
-		'stealth_browser_automation', 
-		'nextbot', 
-		'bots'
-	]
+require 'simple_command_line_parser'
+require 'simple_cloud_logging'
+require 'sequel'
+require 'pampa_deployer'
+
+# TODO: code to parse command line arguments.
+
+# TODO: create your logger here.
+
+logger.logs 'Setting up database connection...'
+connection_descriptor = {
+    :adapter => 'tinytds',
+    :dataserver => PARSER.value('db_url'), # IP or hostname
+    :port => PARSER.value('db_port'), # Required when using other that 1433 (default)
+    :database => 'master', # connect the master to create the central database
+    :user => PARSER.value('db_user'),
+    :password => PARSER.value('db_password'),
+    :timeout => PARSER.value('db_timeout')
+}  
+DB = Sequel.connect(connection_descriptor)
+logger.done
+
+logger.logs 'Database installation...'
+BlackStack::Deployer::db_install(logger, PARSER.value('db_name'), PARSER.value('path'), PARSER.value('size'))
+logger.done
+```
+
+## 1.3. Configuring Database Initialization Jobs
+
+**Database Initialization** is about:
+1. populating the parametric tables; and
+2. seed some tables like. Example: insert the first record in the `[user]` with demo credentials.
+
+First, setup your initialization job, by specifing one by one the `.sql` scripts to run.
+
+```ruby
+# Seting up deployer.
+BlackStack::Deployer.set({
+  # Script to insert the parametric values into the new database.
+  # List them in the order they must be executed.
+  # By convention, the filenames for initialization must match with `/^1./`.
+  :database_initialization_files=>[
+    { 
+      :filename=>'./sql/1.a.parametric-tables.dml.sentences.sql', 
+      :critical=>true, 
+      :description=>'Add records to parametric tables. This file is critical to keep running the deploying process.', 
+    },
+    { 
+      :filename=>'./sql/1.b.parametric-tables.dml.tsql.sql', 
+      :critical=>true, 
+      :description=>'Add records to parametric tables. This file is critical to keep running the deploying process.', 
+    },
+  ],
 })
 ```
 
-**Kepler (central) - shm.rb**
-1. poll deploy requests
-2. pull new deploy request
-3. git fetch --all
-4. git reset --hard origin/#{brach}
-5. update secret files
-6. perform sequel migrations
-7. perform bundler update
-8. restart puma
-9. restart processes
-10. call a.point to update node version
-11. allow other nodes to deploy
+Values in the `:filename` entries should match with `/^1\./` when you are defining the **database initialization** job.
 
-**Eulers (divisions)**
-1. poll ALLOWED deploy requests
-2. pull new ALLOWED deploy request
-4. perform bundler update
-5. restart puma
-6. call a.point to update version on division
 
-**Newtons (workers)**
-1. poll deploy requests
-2. pull new deploy request
-3. git fetch --all
-4. git reset --hard origin/#{brach}
-5. update secret files
-6. perform sequel migrations
-7. perform bundler update
-8. restart workers
-9. call a.point to update node version
+## 1.4. Running Database Initialization Jobs
 
-**Copernico (dispatchers, jobs, planners)**
-1. poll ALLOWED deploy requests
-2. pull new ALLOWED deploy request
-4. perform bundler update
-5. restart processes
-6. call a.point to update version on division
+Then, write a little script to run the initialization.
+
+The code below is incomplete. 
+Find the full example here: [./examples/initialize.rb](./examples/initialize.rb).
+
+```ruby
+require 'simple_command_line_parser'
+require 'simple_cloud_logging'
+require 'sequel'
+require 'pampa_deployer'
+
+# TODO: code to parse command line arguments.
+
+# TODO: create your logger here.
+
+logger.logs 'Setting up database connection...'
+connection_descriptor = {
+    :adapter => 'tinytds',
+    :dataserver => PARSER.value('db_url'), # IP or hostname
+    :port => PARSER.value('db_port'), # Required when using other that 1433 (default)
+    :database => 'master', # connect the master to create the central database
+    :user => PARSER.value('db_user'),
+    :password => PARSER.value('db_password'),
+    :timeout => PARSER.value('db_timeout')
+}  
+DB = Sequel.connect(connection_descriptor)
+logger.done
+
+logger.logs 'Database installation...'
+BlackStack::Deployer::db_initialize(logger, PARSER.value('db_name'), PARSER.value('path'), PARSER.value('size'))
+logger.done
+```
