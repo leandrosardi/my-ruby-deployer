@@ -56,35 +56,10 @@ As a final note, values in the `:filename` entries should match with `/^0\./` wh
 
 Then, write a little script to run the installation.
 
-The code below is incomplete. 
 Find the full example here: [./examples/install.rb](./examples/install.rb).
 
 ```ruby
-require 'simple_command_line_parser'
-require 'simple_cloud_logging'
-require 'sequel'
-require 'pampa_deployer'
-
-# TODO: code to parse command line arguments.
-
-# TODO: create your logger here.
-
-logger.logs 'Setting up database connection...'
-connection_descriptor = {
-    :adapter => 'tinytds',
-    :dataserver => PARSER.value('db_url'), # IP or hostname
-    :port => PARSER.value('db_port'), # Required when using other that 1433 (default)
-    :database => 'master', # connect the master to create the central database
-    :user => PARSER.value('db_user'),
-    :password => PARSER.value('db_password'),
-    :timeout => PARSER.value('db_timeout')
-}  
-DB = Sequel.connect(connection_descriptor)
-logger.done
-
-logger.logs 'Database installation...'
 BlackStack::Deployer::db_install(logger, PARSER.value('db_name'), PARSER.value('path'), PARSER.value('size'))
-logger.done
 ```
 
 ## 1.3. Configuring Database Initialization Jobs
@@ -123,33 +98,8 @@ Values in the `:filename` entries should match with `/^1\./` when you are defini
 
 Then, write a little script to run the initialization.
 
-The code below is incomplete. 
 Find the full example here: [./examples/initialize.rb](./examples/initialize.rb).
 
 ```ruby
-require 'simple_command_line_parser'
-require 'simple_cloud_logging'
-require 'sequel'
-require 'pampa_deployer'
-
-# TODO: code to parse command line arguments.
-
-# TODO: create your logger here.
-
-logger.logs 'Setting up database connection...'
-connection_descriptor = {
-    :adapter => 'tinytds',
-    :dataserver => PARSER.value('db_url'), # IP or hostname
-    :port => PARSER.value('db_port'), # Required when using other that 1433 (default)
-    :database => 'master', # connect the master to create the central database
-    :user => PARSER.value('db_user'),
-    :password => PARSER.value('db_password'),
-    :timeout => PARSER.value('db_timeout')
-}  
-DB = Sequel.connect(connection_descriptor)
-logger.done
-
-logger.logs 'Database installation...'
 BlackStack::Deployer::db_initialize(logger, PARSER.value('db_name'), PARSER.value('path'), PARSER.value('size'))
-logger.done
 ```
