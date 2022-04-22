@@ -15,6 +15,7 @@ BlackStack::Deployer.set({
 	:git_repository_url => 'https://github.com/leandrosardi/tempora', 
 	:git_user => '....',
 	:git_password => '....',
+  :git_auth_token => '...',
 });
 
 # setup roles
@@ -25,7 +26,9 @@ BlackStack::Deployer.add_role({
   :pull_source_code => true,
   :update_public_gems => true,
   :update_private_gems => true,
+  :update_configuration_files => true,
   :restart_sinatra => true,
+  :restart_pampa => true,
 });
 
 # setup computers
@@ -276,7 +279,7 @@ BlackStack::Deployer.add_role({
   :source_code_path => '~/code/tempora'
   :os => BlackStack::Deployer::LINUX,
   :pull_source_code => true, 
-  :custom_pull_method => Proc.new do |ssh, *args|
+  :pulling_function => Proc.new do |ssh, *args|
     stdout = ssh.exec!("
       bash --login
       cd ~/code/tempora
@@ -291,6 +294,9 @@ BlackStack::Deployer.add_role({
   end,
 });
 ```
+
+Here is a good example about how we work dynamically defined methods:
+[https://github.com/leandrosardi/pampa_dispatcher/blob/1.1.0/lib/pampa_dispatcher.rb#L143](https://github.com/leandrosardi/pampa_dispatcher/blob/1.1.0/lib/pampa_dispatcher.rb#L143)
 
 ## 6. Updating Public Gems
 
@@ -328,7 +334,7 @@ BlackStack::Deployer.add_role({
 	:name => 'sinatra-webserver',
   :source_code_path => '~/code/tempora'
   :os => BlackStack::Deployer::LINUX,
-  :update_gems_gems => true,
+  :update_private_gems => true,
   :list_of_private_gems => ['~/code/tempora/gems/stealth_browser_automation', '~/code/tempora/gems/bots'],
 });
 ```
@@ -351,11 +357,126 @@ gem install bots
 
 > IMPORTANT: Design & code are still on development stage.
 
+Releasing an update of the configuration file is a bit trcky, because configuration files have some secretive infromation (like database passwords) that you don't want to push to the repository.
+
+In consequence, when you have to specify a local path in your own computer from where you are running the deploying job.
+
+```ruby
+# setup roles
+BlackStack::Deployer.add_role({
+	:name => 'sinatra-webserver',
+  :source_code_path => '~/code/tempora'
+  :os => BlackStack::Deployer::LINUX,
+  :update_configuration_files => true,
+  :list_of_configuration_files => [
+    { :local_path => "c:\\mycode\\tempora\\config_for_production.yaml", :host_path => '~/code/tempora/config.yaml' }, 
+    { :local_path => "c:\\mycode\\tempora\\db_password_for_production.yaml", :host_path => '~/code/tempora/db_password.yaml' }, 
+  ]
+});
+```
+
+The method `BlackStack::Deployer.deploy('master')` will connect via SSH, and:
+
+1. It will backup old version of configuration files.
+The backup file will have names like `~/code/tempora/config.yyyymmddhhmmmss.yaml`.
+
+and
+
+2. It will create/rewrite configuration files.
+
 ## 9. Restarting [Sinatra](http://sinatrarb.com/) Web Servers
 
 > IMPORTANT: Design & code are still on development stage.
+
+The `:restart_sinatra` is about restart the sinatra web server.
+
+```ruby
+# setup roles
+BlackStack::Deployer.add_role({
+	:name => 'sinatra-webserver',
+  :source_code_path => '~/code/tempora'
+  :os => BlackStack::Deployer::LINUX,
+  :restart_sinatra => true,
+});
+```
+
+Consider that you may have more than one sinatra processes, each one listening one different port:
+
+```ruby
+# setup roles
+BlackStack::Deployer.add_role({
+	:name => 'sinatra-webserver',
+  :source_code_path => '~/code/tempora'
+  :os => BlackStack::Deployer::LINUX,
+  :restart_sinatra => true,
+  :sinatra_ports => [80, 81, 82],
+});
+```
+
+The method `BlackStack::Deployer.deploy('master')` will connect via SSH, restart all the web servers, and return `true` only if the restartings have been done successfully.
+
 
 ## 10. Restarting [Pampa](https://github.com/leandrosardi/pampa) Workers
 
 > IMPORTANT: Design & code are still on development stage.
 
+As of today, our [Pampa](https://github.com/leandrosardi/pampa) is not providing any method to restart the workers from source code.
+
+So, restarting Pampa Workers is a brute force game of killing proccess and launching them again.
+
+```ruby
+# setup roles
+BlackStack::Deployer.add_role({
+	:name => 'sinatra-webserver',
+  :source_code_path => '~/code/tempora'
+  :os => BlackStack::Deployer::LINUX,
+  :restart_pampa => true,
+  :list_of_pampa_commands => [
+    'xterm -e bash -c "cd ~/code/tempora;./shm.rb;bash"',
+    'xterm -e bash -c "cd ~/code/tempora;./mlalistener.rb port=45010;bash"',
+  ] 
+});
+```
+
+The method `BlackStack::Deployer.deploy('master')` will connect via SSH, run the following bash script, and return the output of the execution:
+
+```bash
+bash --login
+kill xterm
+kill ruby
+kill chrome
+kill firefox
+kill terminal
+```
+
+Then, it will run the list of `:list_of_pampa_commands` one by one.
+
+
+
+You can also replace the default `pull` method by a custom method:
+
+```ruby
+# setup roles
+BlackStack::Deployer.add_role({
+	:name => 'sinatra-webserver',
+  :source_code_path => '~/code/tempora'
+  :os => BlackStack::Deployer::LINUX,
+  :pull_source_code => true, 
+  :pulling_function => Proc.new do |ssh, *args|
+    stdout = ssh.exec!("
+      bash --login
+      cd ~/code/tempora
+      git fetch --all
+      git reset --hard origin/master
+      chmod +x ~/code/tempora/*.rb
+      chmod +x ~/code/tempora/p/*.rb
+      chmod +x ~/code/tempora/cli/*.rb
+      chmod +x ~/code/tempora/bash/*.sh
+    ")
+    stdout
+  end,
+});
+```
+
+Here is a good example about how we work dynamically defined methods:
+[https://github.com/leandrosardi/pampa_dispatcher/blob/1.1.0/lib/pampa_dispatcher.rb#L143](https://github.com/leandrosardi/pampa_dispatcher/blob/1.1.0/lib/pampa_dispatcher.rb#L143)
