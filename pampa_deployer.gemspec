@@ -11,6 +11,8 @@ Gem::Specification.new do |s|
   ]
   s.homepage    = 'https://rubygems.org/gems/pampa_deployer'
   s.license     = 'MIT'
+  s.add_runtime_dependency 'net-ssh', '~> 4.1.0', '>= 4.1.0'
+  s.add_runtime_dependency 'winrm', '~> 2.3.6', '>= 2.3.6'
   s.add_runtime_dependency 'websocket', '~> 1.2.8', '>= 1.2.8'
   s.add_runtime_dependency 'json', '~> 1.8.1', '>= 1.8.1'
   s.add_runtime_dependency 'tiny_tds', '~> 1.0.5', '>= 1.0.5'
