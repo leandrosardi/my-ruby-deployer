@@ -3,29 +3,38 @@
 **Pampa Deployer** is a Ruby gem for automated software installation and deploying of new versions, along a large pool of computers, with just one line of code.
 
 ```ruby
+# deploy new version
+BlackStack::Deployer.deploy(branch_name)
+```
+
+Just keep your configuration file up to date.
+
+```ruby
+# setup git connection
 BlackStack::Deployer.set({
-	:github_repo_url => 'https://github.com/leandrosardi/tempora', 
-	:github_auth_token => '....',
+	:git_repository_url => 'https://github.com/leandrosardi/tempora', 
+	:git_user => '....',
+	:git_password => '....',
 });
 
+# setup roles
 BlackStack::Deployer.add_role({
 	:name => 'sinatra-webserver',
-  :os => BlackStack::Deployer::LINUX
+  :source_code_path => '~/code/tempora'
+  :os => BlackStack::Deployer::LINUX,
   :pull_source_code => true,
   :update_public_gems => true,
   :update_private_gems => true,
   :restart_sinatra => true,
 });
 
-BlackStack::Deployer.deploy({
-  :role => 'sinatra-webservers',
-  :hosts => [
-    { :internet_address => 'ws1.mydomain.com', :remote_access_user => 'computer username', :remote_access_password => 'computer password' },
-    { :internet_address => 'ws2.mydomain.com', :remote_access_user => 'computer username', :remote_access_password => 'computer password' },
-    ...
-  ]
-})
+# setup computers
+BlackStack::Deployer.add_hosts([
+  { :internet_address => 'ws1.mydomain.com', :remote_access_user => 'computer username', :remote_access_password => 'computer password', :role=>'sinatra-webserver' },
+  { :internet_address => 'ws2.mydomain.com', :remote_access_user => 'computer username', :remote_access_password => 'computer password', :role=>'sinatra-webserver' },
+)
 ```
+
 
 **Pampa Deployer** automates what you already know how to do manually, but in a repeatable, scalable fashion. There is no magic here!
 
@@ -239,13 +248,104 @@ BlackStack::Deployer::db_update(nil, db_name, sql_path, last_filename)
 
 Releasing new source code is about connecting a computer, and running git commands for pulling the latest version of a source code.
 
+```ruby
+# setup roles
+BlackStack::Deployer.add_role({
+	:name => 'sinatra-webserver',
+  :source_code_path => '~/code/tempora'
+  :os => BlackStack::Deployer::LINUX,
+  :pull_source_code => true, 
+});
+```
+
+The method `BlackStack::Deployer.deploy('master')` will connect via SSH, run the following bash script, and return the output of the execution:
+
+```bash
+bash --login
+cd ~/code/tempora
+git fetch --all
+git reset --hard origin/master
+```
+
+You can also replace the default `pull` method by a custom method:
+
+```ruby
+# setup roles
+BlackStack::Deployer.add_role({
+	:name => 'sinatra-webserver',
+  :source_code_path => '~/code/tempora'
+  :os => BlackStack::Deployer::LINUX,
+  :pull_source_code => true, 
+  :custom_pull_method => Proc.new do |ssh, *args|
+    stdout = ssh.exec!("
+      bash --login
+      cd ~/code/tempora
+      git fetch --all
+      git reset --hard origin/master
+      chmod +x ~/code/tempora/*.rb
+      chmod +x ~/code/tempora/p/*.rb
+      chmod +x ~/code/tempora/cli/*.rb
+      chmod +x ~/code/tempora/bash/*.sh
+    ")
+    stdout
+  end,
+});
+```
+
 ## 6. Updating Public Gems
 
 > IMPORTANT: Design & code are still on development stage.
 
+Updating public gems is about running `bundler update` in the remote computer.
+
+```ruby
+# setup roles
+BlackStack::Deployer.add_role({
+	:name => 'sinatra-webserver',
+  :source_code_path => '~/code/tempora'
+  :os => BlackStack::Deployer::LINUX,
+  :update_public_gems => true, 
+});
+```
+
+The method `BlackStack::Deployer.deploy('master')` will connect via SSH, run the following bash script, and return the output of the execution:
+
+```bash
+bash --login
+cd ~/code/tempora
+bundler update
+```
+
 ## 7. Updating Private Gems 
 
 > IMPORTANT: Design & code are still on development stage.
+
+Updating private gems is about removing some gems that you store them privately in some directory inside the source code.
+
+```ruby
+# setup roles
+BlackStack::Deployer.add_role({
+	:name => 'sinatra-webserver',
+  :source_code_path => '~/code/tempora'
+  :os => BlackStack::Deployer::LINUX,
+  :update_gems_gems => true,
+  :list_of_private_gems => ['~/code/tempora/gems/stealth_browser_automation', '~/code/tempora/gems/bots'],
+});
+```
+
+The method `BlackStack::Deployer.deploy('master')` will connect via SSH, run the following bash script, and return the output of the execution:
+
+```bash
+bash --login
+
+cd ~/code/tempora/gems
+gem uninstall stealth_browser_automation --all -I
+gem install stealth_browser_automation
+
+cd ~/code/tempora/gems
+gem uninstall bots --all -I
+gem install bots
+```
 
 ## 8. Updating Configuration Files
 
