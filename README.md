@@ -42,15 +42,17 @@ BlackStack::Deployer.set({
 });
 ```
 
-Set the `:critical` flag in `true` if you want to abort the job if such a file doesn't finish successfully.  
+**Specifications:**
 
-The values in the `:filename` entries should match with either `/\.tsql\./` or `/\.sentences\./`.
+1. Set the `:critical` flag in `true` if you want to abort the job if such a file doesn't finish successfully.  
 
-1. The `/\.tsql\./` files will be processsed each transact-sql codes one by one; each one separated by a `GO` statement
+2. The values in the `:filename` entries should match with either `/\.tsql\./` or `/\.sentences\./`.
 
-2. The `/\.sentences\./` files will be processed line by line, assuming that each line is one sentence. Example: a list of insert statements.
+	- The `/\.tsql\./` files will be processsed each transact-sql codes one by one; each one separated by a `GO` statement
 
-As a final note, values in the `:filename` entries should match with `/^0\./` when you are defining the **database installation** job.
+	- The `/\.sentences\./` files will be processed line by line, assuming that each line is one sentence. Example: a list of insert statements.
+
+3. The values in the `:filename` entries should match with `/^0\./` when you are defining the **database installation** job.
 
 ## 1.3. Running Database Installation Jobs
 
@@ -59,8 +61,17 @@ Then, write a little script to run the installation.
 Find the full example here: [./examples/install.rb](./examples/install.rb).
 
 ```ruby
-BlackStack::Deployer::db_install(logger, PARSER.value('db_name'), PARSER.value('path'), PARSER.value('size'))
+# create a Sequel database connection
+DB = Sequel.connect(connection_descriptor)
+# run a database installation
+BlackStack::Deployer::db_install(nil, db_name, path, size)
 ```
+
+**Parameters:**
+
+1. **db_name:** The name of the database. The `db_install` process will replace any `%database_name%` wildcard in your `.sql` files.
+2. **path:** The location to store the both data and transaction log files. The `db_install` process will replace any `%path%` wildcard in your `.sql` files.
+3. **size:** The initial size in MB of both data and transaction log files. The `db_install` process will replace any `%size%` wildcard in your `.sql` files.
 
 ## 1.3. Configuring Database Initialization Jobs
 
@@ -91,8 +102,9 @@ BlackStack::Deployer.set({
 })
 ```
 
-Values in the `:filename` entries should match with `/^1\./` when you are defining the **database initialization** job.
+**Specifications:**
 
+1. The values in the `:filename` entries should match with `/^1\./` when you are defining the **database initialization** job.
 
 ## 1.4. Running Database Initialization Jobs
 
@@ -101,5 +113,41 @@ Then, write a little script to run the initialization.
 Find the full example here: [./examples/initialize.rb](./examples/initialize.rb).
 
 ```ruby
-BlackStack::Deployer::db_initialize(logger, PARSER.value('db_name'), PARSER.value('path'), PARSER.value('size'))
+# create a Sequel database connection
+DB = Sequel.connect(connection_descriptor)
+# run a database initialization
+BlackStack::Deployer::db_initialize(nil, db_name)
 ```
+
+**Parameters:**
+
+1. **db_name:** The name of the database. The `db_initialize` process will replace any `%database_name%` wildcard in your `.sql` files.
+
+# 2. Running Database Updates
+
+**Database Update** is about running a series of `.sql` files with updates to the database.
+
+```ruby
+# create a Sequel database connection
+DB = Sequel.connect(connection_descriptor)
+# run a database update
+BlackStack::Deployer::db_update(nil, db_name, sql_path, last_filename)
+```
+
+**Parameters:**
+
+1. **db_name:** The name of the database. The `db_install` process will replace any `%database_name%` wildcard in your `.sql` files.
+2. **sql_path:** The location where find the `.sql` files to run. They will be executed one by one, in alphabetical order.
+3. **last_filename:** The name of the last file processed, so your process can resume from where it finished in the last job.
+
+**Specifications:**
+
+1. All files are considered as critical. If any file fails, the exception is raised.
+
+2. The name of all files should match with either `/\.tsql\./` or `/\.sentences\./`.
+
+	- The `/\.tsql\./` files will be processsed each transact-sql codes one by one; each one separated by a `GO` statement
+
+	- The `/\.sentences\./` files will be processed line by line, assuming that each line is one sentence. Example: a list of insert statements.
+
+3. The name of files should be higher than `'1'` (and `/^0\./` too), so you can store all files (installation, initializations, updates) in the same path, and run them all together if you want.

@@ -140,13 +140,13 @@ module BlackStack
         # Validate: the `filename` must be either a `.tsql` file or a `.sentences` file.
         errors << "The file #{filename} is not a .tsql or .sentences file." unless is_tsql_file?(filename) || is_sentences_file?(filename)
   
-        # Validate: if the `sql` variable contains %division_name% wildcard, the `db_name` parameter must be defined.
-        errors << "The parameter `db_name` is mandatory, because the `%division_name%` wildcard is present in the `#{filename}`." if sql.include?('%division_name%') && db_name.nil?
+        # Validate: if the `sql` code contains %database_name% wildcard, the `db_name` parameter must be defined.
+        errors << "The parameter `db_name` is mandatory, because the `%database_name%` wildcard is present in the `#{filename}`." if sql.include?('%database_name%') && db_name.nil?
   
-        # Validate: if the `sql` variable contains %path% wildcard, the `path` parameter must be defined.
+        # Validate: if the `sql` code contains %path% wildcard, the `path` parameter must be defined.
         errors << "The parameter `path` is mandatory, because the `%path%` wildcard is present in the `#{filename}`." if sql.include?('%path%') && path.nil?
   
-        # Validate: if the `sql` variable contains %size% wildcard, the `size` parameter must be defined.
+        # Validate: if the `sql` code contains %size% wildcard, the `size` parameter must be defined.
         errors << "The parameter `size` is mandatory, because the `%size%` wildcard is present in the `#{filename}`." if sql.include?('%size%') && size.nil?
   
         # Raise an exception if there are errors.
@@ -157,7 +157,7 @@ module BlackStack
         sql.gsub!("\u0000", '')
 
         tlogger.logs 'Replacing wildcards... '
-        sql.gsub!(/%division_name%/, db_name) unless db_name.nil?
+        sql.gsub!(/%database_name%/, db_name) unless db_name.nil?
         sql.gsub!(/%path%/, path) unless path.nil?
         sql.gsub!(/%size%/, size) unless size.nil?
         tlogger.done
@@ -230,6 +230,36 @@ module BlackStack
 
         # call the method `db_execute_file` for each file descriptor in the array `database_initialization_files`
         BlackStack::Deployer::db_execute_files(@@database_initialization_files, tlogger, db_name, path, size)
+      end
+
+      # Run a series of `.sql` files with updates to the database.
+      # All files are considered as critical. If any file fails, the exception is raised.
+      # 
+      # **Parameters:**
+      # 1. **path:** The location where find the `.sql` files to run. They will be executed one by one, in alphabetical order.
+      # 2. **last_filename:** The name of the last file processed, so your process can resume from where it finished in the last job.
+      #
+      def self.db_update(tlogger=nil, db_name=nil, sql_path=nil, last_filename='1', path=nil, size=nil)
+        # VALIDATE: `last_filename` must be higher than `'2'``.
+        raise "The parameter `last_filename` must be higher than `'2'`." if last_filename.to_i < 2
+
+        file_descriptors = []
+
+        # get list of `.sql` files in the directory `sql_path`, with a name higher than `last_filename`, sorted by name.
+        files = Dir.glob("#{sql_path}/*.sql").select { |filename| 
+          filename > last_filename 
+        }.sort { |filename| 
+          filename 
+        }.each { |filename|
+          file_descriptors << {
+            :filename => filename,
+            :critical => true,
+            :description => '',
+          }
+        }
+
+        # call the method `db_execute_file` for each file descriptor in the array `database_initialization_files`
+        BlackStack::Deployer::db_execute_files(file_descriptors, tlogger, db_name, path, size)
       end
 
     end # module Deployer
