@@ -476,18 +476,24 @@ module BlackStack
       end
 
       # Call all the deploying stages.
-      def self.deploy
+      def self.deploy(branch_name=nil)
         # iterate the list of hosts
         @@hosts.each { |host_descriptor|
           # find the deploying profile of this host
           deploying_profile_descriptor = @@deploying_profiles.find { |deploying_profile|
             deploying_profile[:name] == host_descriptor[:deploying_profile]
           }
-          self.deploy_pull_source_code(host_descriptor, deploying_profile_descriptor)
+
+          self.deploy_pull_source_code(branch_name, host_descriptor, deploying_profile_descriptor)
+
           self.deploy_update_public_gems(host_descriptor, deploying_profile_descriptor)
+
           self.deploy_update_private_gems(host_descriptor, deploying_profile_descriptor)
+
           self.deploy_update_configuration_files(host_descriptor, deploying_profile_descriptor)
+
           self.deploy_restart_sinatra(host_descriptor, deploying_profile_descriptor)
+
           self.deploy_restart_pampa(host_descriptor, deploying_profile_descriptor)
         }
       end
