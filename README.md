@@ -7,37 +7,90 @@
 BlackStack::Deployer.deploy(branch_name)
 ```
 
-Just keep your configuration file up to date.
+## 1. Getting Started
+
+Install Pampa Deployer
+
+```bash 
+gem intall pampa_deployer
+```
+
+Write your configuration file up to date.
 
 ```ruby
-# setup git connection
-BlackStack::Deployer.set({
-	:git_repository_url => 'https://github.com/leandrosardi/tempora', 
-	:git_user => '....',
-	:git_password => '....',
-  :git_auth_token => '...',
-});
+# setup deploying profiles for different kind of servers.
+BlackStack::Deployer.set_deploying_profiles([
+  {
+    # this is the name to identify the profile
+    :name => 'sinatra-webserver',
 
-# setup roles
-BlackStack::Deployer.add_role({
-	:name => 'sinatra-webserver',
-  :source_code_path => '~/code/tempora'
-  :os => BlackStack::Deployer::LINUX,
-  :pull_source_code => true,
-  :update_public_gems => true,
-  :update_private_gems => true,
-  :update_configuration_files => true,
-  :restart_sinatra => true,
-  :restart_pampa => true,
-});
+    # this the the folder where the source code is hosted
+    :source_code_path => '~/code/tempora'
+
+    # if `:os` is `BlackStack::Deployer::LINUX` it will connect via SSH, and run `bash` commands.
+    # if `:os` is `BlackStack::Deployer::WIN` it will connect via PowerSheel, and run `win-cmd` commands.
+    :os => BlackStack::Deployer::LINUX,
+
+    # activate this flag to:
+    # 1. do a change dir to `:source_code_path`; and
+    # 2. do a `git fetch --all` and `git reset --all origin/#{branch_name}`.
+    :pull_source_code => true,
+
+    # activate this flag to:
+    # 1. do a change dir to `:source_code_path`; and
+    # 2. do a `bundler update`.
+    :update_public_gems => true,
+
+    # activate this flag to:
+    # 1. do a change dir to `:source_code_path`; 
+    # 2. do a change dir to `./gems`; and
+    # 3. do `gem uninstall --all -I #{name}` and a `gem install #{name}`, for all the gems listed on `:private_gems`
+    :update_private_gems => true,
+    :list_of_private_gems => ['stealth_browser_automation', 'bots', 'nextbot'],
+
+    # activate this flag to:
+    # 1. do a change dir to `:source_code_path`; 
+    # 2. rename each one of the existing configuration files with `mv ./#{host_filename} ./#{host_filename}.#{Time.now.utc.strftime("%Y%m%d%H%M%S")}`; 
+    # 3. create a new file `./#{config_filename}`; and
+    # 4. paste a new content `./#{}`
+    :update_configuration_files => true,
+    :list_of_configuration_files => [
+      { :local_path => "c:\\mycode\\tempora\\config_for_production.yaml", :host_filename => '~/code/tempora/config.yaml' }, 
+      { :local_path => "c:\\mycode\\tempora\\db_password_for_production.yaml", :host_filename => '~/code/tempora/db_password.yaml' }, 
+    ]
+
+    # activate this flag if you want to restart all the sinatra webservers running.
+    # consider they may be more than 1 sinatra processes. 
+    :restart_sinatra => true,
+    :sinatra_ports => [80, 81, 82],
+
+    # activate this flag to do:
+    # 1. run all the one-line commands in the `kill_pampa_one_line_commands` array; and then
+    # 2. run all the one-line commands in the `start_pampa_one_line_commands` array. 
+    :restart_pampa => true,
+    :kill_pampa_one_line_commands => [
+      'kill xterm',
+      'kill ruby',
+      'kill chrome',
+      'kill firefox',
+      'kill terminal',
+    ]
+    :start_pampa_one_line_commands => [
+      'xterm -e bash -c "cd ~/code/tempora;./shm.rb;bash"',
+      'xterm -e bash -c "cd ~/code/tempora;./mlalistener.rb port=45010;bash"',
+    ] 
+  },
+]);
 
 # setup computers
-BlackStack::Deployer.add_hosts([
+BlackStack::Deployer.set_hosts([
   { :internet_address => 'ws1.mydomain.com', :remote_access_user => 'computer username', :remote_access_password => 'computer password', :role=>'sinatra-webserver' },
+
   { :internet_address => 'ws2.mydomain.com', :remote_access_user => 'computer username', :remote_access_password => 'computer password', :role=>'sinatra-webserver' },
 )
 ```
 
+## 2. Abstract
 
 **Pampa Deployer** automates what you already know how to do manually, but in a repeatable, scalable fashion. There is no magic here!
 
@@ -53,7 +106,7 @@ Here's what makes Pampa Deployer great:
 
 5. Everything in **Pampa Deployer** comes down to running SSH or Powershell commands on remote servers. On the one hand, that makes Pampa Deployer simple. On the other hand, if you aren't comfortable SSH-ing into a Linux box and doing stuff on the command-line, then **Pampa Deployer** is probably not for you.
 
-## Scope
+## 3. Scope
 
 As of today, **Pampa Deployer** supports:
 
@@ -69,11 +122,11 @@ And we are activelly working to add these features:
 7. restarting [Sinatra](http://sinatrarb.com/) web servers;
 8. restarting [Pampa](https://github.com/leandrosardi/pampa) workers.
 
-## For Any Language
+## 4. For Any Language
 
 **Pampa Deployer** written in Ruby, but it can easily be used to deploy any language.
 
-## Dependencies
+## 5. Dependencies
 
 **Pampa Deployer** uses
 
@@ -83,7 +136,7 @@ And we are activelly working to add these features:
 and
 4. [Bundler](https://bundler.io/) for installing/updating gems.
 
-## Why Not Capistrano?
+## 6. Why Not Capistrano?
 
 1. [Capistrano](https://capistranorb.com/) is not fully supporting [Sinatra](http://sinatrarb.com/) or it is not well documented about.
 
@@ -91,13 +144,6 @@ and
 
 3. **Pampa Deployer** is also more integrated with [Pampa](https://github.com/leandrosardi/pampa), and all our projects at [ExpandedVenture](https://ExpandedVenture.com).
 
-# Getting Started
-
-## 1. Installation
-
-```cmd
-gem install pampa_deployer
-```
 
 ## 2. Database Installation
 
@@ -431,52 +477,22 @@ BlackStack::Deployer.add_role({
   :source_code_path => '~/code/tempora'
   :os => BlackStack::Deployer::LINUX,
   :restart_pampa => true,
-  :list_of_pampa_commands => [
+  :kill_pampa_one_line_commands => [
+    'kill xterm',
+    'kill ruby',
+    'kill chrome',
+    'kill firefox',
+    'kill terminal',
+  ]
+  :start_pampa_one_line_commands => [
     'xterm -e bash -c "cd ~/code/tempora;./shm.rb;bash"',
     'xterm -e bash -c "cd ~/code/tempora;./mlalistener.rb port=45010;bash"',
   ] 
 });
 ```
 
-The method `BlackStack::Deployer.deploy('master')` will connect via SSH, run the following bash script, and return the output of the execution:
+The method `BlackStack::Deployer.deploy('master')` will connect via SSH, 
 
-```bash
-bash --login
-kill xterm
-kill ruby
-kill chrome
-kill firefox
-kill terminal
-```
-
-Then, it will run the list of `:list_of_pampa_commands` one by one.
+Then, it will run the list of `:start_pampa_one_line_commands` one by one.
 
 
-
-You can also replace the default `pull` method by a custom method:
-
-```ruby
-# setup roles
-BlackStack::Deployer.add_role({
-	:name => 'sinatra-webserver',
-  :source_code_path => '~/code/tempora'
-  :os => BlackStack::Deployer::LINUX,
-  :pull_source_code => true, 
-  :pulling_function => Proc.new do |ssh, *args|
-    stdout = ssh.exec!("
-      bash --login
-      cd ~/code/tempora
-      git fetch --all
-      git reset --hard origin/master
-      chmod +x ~/code/tempora/*.rb
-      chmod +x ~/code/tempora/p/*.rb
-      chmod +x ~/code/tempora/cli/*.rb
-      chmod +x ~/code/tempora/bash/*.sh
-    ")
-    stdout
-  end,
-});
-```
-
-Here is a good example about how we work dynamically defined methods:
-[https://github.com/leandrosardi/pampa_dispatcher/blob/1.1.0/lib/pampa_dispatcher.rb#L143](https://github.com/leandrosardi/pampa_dispatcher/blob/1.1.0/lib/pampa_dispatcher.rb#L143)
