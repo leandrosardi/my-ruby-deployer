@@ -356,26 +356,7 @@ module BlackStack
         # call the method `db_execute_file` for each file descriptor in the array `database_initialization_files`
         BlackStack::Deployer::db_execute_files(file_descriptors, tlogger, db_name, path, size)
       end
-
-
-      # TODO: Write documentation
-      # This method should not be called directly by user code.
-      def self.deploy_pull_source_code_on_win
-        # TODO: Code Me!
-      end
-
-      # TODO: Write documentation
-      # This method should not be called directly by user code.
-      def self.deploy_update_public_gems_on_win
-        # TODO: Code Me!
-      end
       
-      # TODO: Write documentation
-      # This method should not be called directly by user code.
-      def self.deploy_update_private_gems_on_win
-        # TODO: Code Me!
-      end
-
       # TODO: Write documentation
       # This method should not be called directly by user code.
       def self.deploy_update_configuration_files_on_win
@@ -391,27 +372,6 @@ module BlackStack
       # TODO: Write documentation
       # This method should not be called directly by user code.
       def self.deploy_restart_pampa_on_win
-        # TODO: Code Me!
-      end
-
-
-
-
-      # TODO: Write documentation      
-      # This method should not be called directly by user code.
-      def self.deploy_pull_source_code_on_linux
-        # TODO: Code Me!
-      end
-
-      # TODO: Write documentation
-      # This method should not be called directly by user code.
-      def self.deploy_update_public_gems_on_linux
-        # TODO: Code Me!
-      end
-
-      # TODO: Write documentation
-      # This method should not be called directly by user code.
-      def self.deploy_update_private_gems_on_linux
         # TODO: Code Me!
       end
 
@@ -433,21 +393,18 @@ module BlackStack
         # TODO: Code Me!
       end
 
-      # Call either the Windows or Linux version of this method, depending on the `:os` defined for the `deploying_descriptor`.
       # TODO: Write documentation      
       # This method should not be called directly by user code.
       def self.deploy_pull_source_code
         # TODO: Code Me!
       end
 
-      # Call either the Windows or Linux version of this method, depending on the `:os` defined for the `deploying_descriptor`.
       # TODO: Write documentation
       # This method should not be called directly by user code.
       def self.deploy_update_public_gems
         # TODO: Code Me!
       end
 
-      # Call either the Windows or Linux version of this method, depending on the `:os` defined for the `deploying_descriptor`.
       # TODO: Write documentation
       # This method should not be called directly by user code.
       def self.deploy_update_private_gems
