@@ -1,9 +1,11 @@
 # TODO: move this to the `pampa_deployer` repo.
 module BlackStack
     module Deployer
-      @@database_installation_files = []
-      @@database_initialization_files = []
-  
+      @@database_installation_files = [] # array of hashes
+      @@database_initialization_files = [] # array of hashes
+      @@deployment_profiles = {} # array of hashes
+      @@hosts = [] # array of hashes
+
       # getter
       def self.database_installation_files
         @@database_installation_files
@@ -14,15 +16,26 @@ module BlackStack
         @@database_initialization_files
       end
 
+      # getter
+      def self.deployment_profiles
+        @@deployment_profiles
+      end
+
+      # getter
+      def self.hosts
+        @@hosts
+      end
+
+
       # Return `true` if the name of the file matches with `/\.tsql\./`, and it doesn't match with `/\.sentences\./`, and the matches with `/\.tsql\./` are no more than one.
-      # Othersie, return `false`.
+      # Otherwise({, return `false`.
       # This method should not be called directly by user code.
       def self.is_tsql_file?(filename)
         filename =~ /\.tsql\./ && filename !~ /\.sentences\./ && filename.scan(/\.tsql\./).size == 1
       end
   
       # Return `true` if the name of the file matches with `/\.sentences\./`, and it doesn't match with `/\.tsql\./`, and the matches with `/\.sentences\./` are no more than one.
-      # Othersie, return `false`.
+      # Otherwise({, return `false`.
       # This method should not be called directly by user code.
       def self.is_sentences_file?(filename)
         filename =~ /\.sentences\./ && filename !~ /\.tsql\./ && filename.scan(/\.sentences\./).size == 1
@@ -30,7 +43,7 @@ module BlackStack
   
       # Extract the name of the file from the full path stored in the `filename` parameter.
       # Return `true` if the name of the file matches with `/^0\./`.
-      # Othersie, return `false`.
+      # Otherwise({, return `false`.
       # This method should not be called directly by user code.
       def self.is_database_installation_file?(filename)
         # extract the name fo the file form the filename variable
@@ -41,7 +54,7 @@ module BlackStack
   
       # Extract the name of the file from the full path stored in the `filename` parameter.
       # Return `true` if the name of the file matches with `/^1\./`.
-      # Othersie, return `false`.
+      # Otherwise({, return `false`.
       # This method should not be called directly by user code.
       def self.is_database_initialization_file?(filename)
         # extract the name fo the file form the filename variable
@@ -50,6 +63,78 @@ module BlackStack
         return false
       end
   
+      # validate the type of each one of the parameters of `deploying_profile` description in `h`.
+      # If one or more errors are found, raise an exception with all the errors listed.
+      # Example of a `deploying_profile` descriptor:
+      # ```ruby
+      # {
+      #   :name => 'sinatra-webserver',
+      #   :source_code_path => '~/code/tempora'
+      #   :os => BlackStack::Deployer::LINUX,
+      #   :pull_source_code => true,
+      #   :update_public_gems => true,
+      #   :update_private_gems => true,
+      #   :list_of_private_gems => ['stealth_browser_automation', 'bots', 'nextbot'],
+      #   :update_configuration_files => true,
+      #   :list_of_configuration_files => [
+      #     { :local_path => "c:\\mycode\\tempora\\config_for_production.yaml", :host_filename => '~/code/tempora/config.yaml' }, 
+      #     { :local_path => "c:\\mycode\\tempora\\db_password_for_production.yaml", :host_filename => '~/code/tempora/db_password.yaml' }, 
+      #   ]
+      #   :restart_sinatra => true,
+      #   :sinatra_ports => [80, 81, 82],
+      #   :restart_pampa => true,
+      #   :kill_pampa_one_line_commands => [
+      #     'kill xterm',
+      #     'kill ruby',
+      #     'kill chrome',
+      #     'kill firefox',
+      #     'kill terminal',
+      #   ]
+      #   :start_pampa_one_line_commands => [
+      #     'xterm -e bash -c "cd ~/code/tempora;./shm.rb;bash"',
+      #     'xterm -e bash -c "cd ~/code/tempora;./mlalistener.rb port=45010;bash"',
+      #   ] 
+      # }
+      # ```
+      def self.validate_deploying_profile_descriptor(h)
+        errors = []
+
+        # TODO: Code Me!
+
+        # if any error found, then raise an exception with the list of errors
+        raise "Invalid deploying profile descriptor: #{errors.join(', ')}" if errors.size > 0
+      end
+
+      # validate the type of each one of the parameters of `host` description in `h`.
+      # If one or more errors are found, raise an exception with all the errors listed.
+      # Example of a `host` descriptor:
+      # ```ruby
+      # { 
+      # :internet_address => 'ws1.mydomain.com', 
+      # :remote_access_user => 'computer username', 
+      # :remote_access_password => 'computer password', 
+      # :role=>'sinatra-webserver' },
+      # }
+      # ```
+      def self.validate_host_descriptor(h)
+        errors = []
+
+        # TODO: Code Me!
+
+        # if any error found, then raise an exception with the list of errors
+        raise "Invalid host descriptor: #{errors.join(', ')}" if errors.size > 0
+      end
+
+      def self.add_deploying_profile(name, h)
+        BlackStack::Deploying.validate_deploying_profile_descriptor(h)
+        @@deployment_profiles[name] = h
+      end
+
+      def self.add_host(name, h)
+        BlackStack::Deploying.validate_host_descriptor(h)
+        @@hosts[name] = h
+      end
+
       # Setup the configuration of the deployer.
       def self.set(h)
         errors = []
@@ -81,6 +166,16 @@ module BlackStack
   
         @@database_installation_files = h[:database_installation_files].class == Array ? h[:database_installation_files] : []
         @@database_initialization_files = h[:database_initialization_files].class == Array ? h[:database_initialization_files] : []
+
+        # validate and add each one of the deploying profiles
+        h[:deploying_profiles].each { |i|
+          @@deploying_profiles << i
+        }
+
+        # validate and add each one of the hosts
+        h[:hosts].each { |i|
+          @@hosts << i
+        }
       end # def self.set(h)
   
       # Method to process an `.sql` file with transact-sql code, each one separated by a `GO` statement.
@@ -260,6 +355,141 @@ module BlackStack
 
         # call the method `db_execute_file` for each file descriptor in the array `database_initialization_files`
         BlackStack::Deployer::db_execute_files(file_descriptors, tlogger, db_name, path, size)
+      end
+
+
+      # TODO: Write documentation
+      # This method should not be called directly by user code.
+      def self.deploy_pull_source_code_on_win
+        # TODO: Code Me!
+      end
+
+      # TODO: Write documentation
+      # This method should not be called directly by user code.
+      def self.deploy_update_public_gems_on_win
+        # TODO: Code Me!
+      end
+      
+      # TODO: Write documentation
+      # This method should not be called directly by user code.
+      def self.deploy_update_private_gems_on_win
+        # TODO: Code Me!
+      end
+
+      # TODO: Write documentation
+      # This method should not be called directly by user code.
+      def self.deploy_update_configuration_files_on_win
+        # TODO: Code Me!
+      end
+
+      # TODO: Write documentation
+      # This method should not be called directly by user code.
+      def self.deploy_restart_sinatra_on_win
+        # TODO: Code Me!
+      end
+
+      # TODO: Write documentation
+      # This method should not be called directly by user code.
+      def self.deploy_restart_pampa_on_win
+        # TODO: Code Me!
+      end
+
+
+
+
+      # TODO: Write documentation      
+      # This method should not be called directly by user code.
+      def self.deploy_pull_source_code_on_linux
+        # TODO: Code Me!
+      end
+
+      # TODO: Write documentation
+      # This method should not be called directly by user code.
+      def self.deploy_update_public_gems_on_linux
+        # TODO: Code Me!
+      end
+
+      # TODO: Write documentation
+      # This method should not be called directly by user code.
+      def self.deploy_update_private_gems_on_linux
+        # TODO: Code Me!
+      end
+
+      # TODO: Write documentation
+      # This method should not be called directly by user code.
+      def self.deploy_update_configuration_files_on_linux
+        # TODO: Code Me!
+      end
+
+      # TODO: Write documentation
+      # This method should not be called directly by user code.
+      def self.deploy_restart_sinatra_on_linux
+        # TODO: Code Me!
+      end
+
+      # TODO: Write documentation
+      # This method should not be called directly by user code.
+      def self.deploy_restart_pampa_on_linux
+        # TODO: Code Me!
+      end
+
+      # Call either the Windows or Linux version of this method, depending on the `:os` defined for the `deploying_descriptor`.
+      # TODO: Write documentation      
+      # This method should not be called directly by user code.
+      def self.deploy_pull_source_code
+        # TODO: Code Me!
+      end
+
+      # Call either the Windows or Linux version of this method, depending on the `:os` defined for the `deploying_descriptor`.
+      # TODO: Write documentation
+      # This method should not be called directly by user code.
+      def self.deploy_update_public_gems
+        # TODO: Code Me!
+      end
+
+      # Call either the Windows or Linux version of this method, depending on the `:os` defined for the `deploying_descriptor`.
+      # TODO: Write documentation
+      # This method should not be called directly by user code.
+      def self.deploy_update_private_gems
+        # TODO: Code Me!
+      end
+
+      # Call either the Windows or Linux version of this method, depending on the `:os` defined for the `deploying_descriptor`.
+      # TODO: Write documentation
+      # This method should not be called directly by user code.
+      def self.deploy_update_configuration_files
+        # TODO: Code Me!
+      end
+
+      # Call either the Windows or Linux version of this method, depending on the `:os` defined for the `deploying_descriptor`.
+      # TODO: Write documentation
+      # This method should not be called directly by user code.
+      def self.deploy_restart_sinatra
+        # TODO: Code Me!
+      end
+
+      # Call either the Windows or Linux version of this method, depending on the `:os` defined for the `deploying_descriptor`.
+      # TODO: Write documentation
+      # This method should not be called directly by user code.
+      def self.deploy_restart_pampa
+        # TODO: Code Me!
+      end
+
+      # Call all the deploying stages.
+      def self.deploy
+        # iterate the list of hosts
+        @@hosts.each { |host_descriptor|
+          # find the deploying profile of this host
+          deploying_profile_descriptor = @@deploying_profiles.find { |deploying_profile|
+            deploying_profile[:name] == host_descriptor[:deploying_profile]
+          }
+          self.deploy_pull_source_code(host_descriptor, deploying_profile_descriptor)
+          self.deploy_update_public_gems(host_descriptor, deploying_profile_descriptor)
+          self.deploy_update_private_gems(host_descriptor, deploying_profile_descriptor)
+          self.deploy_update_configuration_files(host_descriptor, deploying_profile_descriptor)
+          self.deploy_restart_sinatra(host_descriptor, deploying_profile_descriptor)
+          self.deploy_restart_pampa(host_descriptor, deploying_profile_descriptor)
+        }
       end
 
     end # module Deployer

@@ -19,8 +19,8 @@ Write your configuration file up to date.
 
 ```ruby
 # setup deploying profiles for different kind of servers.
-BlackStack::Deployer.set_deploying_profiles([
-  {
+BlackStack::Deployer.set({
+  :deploying_profiles => [{
     # this is the name to identify the profile
     :name => 'sinatra-webserver',
 
@@ -79,15 +79,20 @@ BlackStack::Deployer.set_deploying_profiles([
       'xterm -e bash -c "cd ~/code/tempora;./shm.rb;bash"',
       'xterm -e bash -c "cd ~/code/tempora;./mlalistener.rb port=45010;bash"',
     ] 
-  },
-]);
+  }],
+});
+```
 
+Then, add the computers where you want to run deployments.
+
+```ruby
 # setup computers
-BlackStack::Deployer.set_hosts([
-  { :internet_address => 'ws1.mydomain.com', :remote_access_user => 'computer username', :remote_access_password => 'computer password', :role=>'sinatra-webserver' },
-
-  { :internet_address => 'ws2.mydomain.com', :remote_access_user => 'computer username', :remote_access_password => 'computer password', :role=>'sinatra-webserver' },
-)
+BlackStack::Deployer.set({
+  :hosts => [
+    { :internet_address => 'ws1.mydomain.com', :remote_access_user => 'computer username', :remote_access_password => 'computer password', :deploying_profile=>'sinatra-webserver' },
+    { :internet_address => 'ws2.mydomain.com', :remote_access_user => 'computer username', :remote_access_password => 'computer password', :deploying_profile=>'sinatra-webserver' },
+  ]
+})
 ```
 
 ## 2. Abstract
@@ -102,7 +107,7 @@ Here's what makes Pampa Deployer great:
 
 3. **Parallel execution**: Deploying to a fleet of app servers? Pampa Deployer can run each deployment task concurrently across those servers and uses connection pooling for speed.
 
-4. **Server roles**: Your application may need many different types of servers: a database server, an app server, two web servers, and a job queue work server, for example. Pampa Deployer lets you tag each server with one or more roles, so you can control what tasks are executed where.
+4. **Server deploying profiles**: Your application may need many different types of servers: a database server, an app server, two web servers, and a job queue work server, for example. Pampa Deployer lets you tag each server with one or more deploying profiles, so you can control what tasks are executed where.
 
 5. Everything in **Pampa Deployer** comes down to running SSH or Powershell commands on remote servers. On the one hand, that makes Pampa Deployer simple. On the other hand, if you aren't comfortable SSH-ing into a Linux box and doing stuff on the command-line, then **Pampa Deployer** is probably not for you.
 
@@ -242,7 +247,6 @@ BlackStack::Deployer.set({
 
 1. The values in the `:filename` entries should match with `/^1\./` when you are defining the **database initialization** job.
 
-
 Then, write a little script to run the initialization.
 
 ### 3.2. Running Database Initialization Jobs
@@ -298,8 +302,8 @@ BlackStack::Deployer::db_update(nil, db_name, sql_path, last_filename)
 Releasing new source code is about connecting a computer, and running git commands for pulling the latest version of a source code.
 
 ```ruby
-# setup roles
-BlackStack::Deployer.add_role({
+# setup deploying profiles
+BlackStack::Deployer.add_deploying_profile({
 	:name => 'sinatra-webserver',
   :source_code_path => '~/code/tempora'
   :os => BlackStack::Deployer::LINUX,
@@ -319,8 +323,8 @@ git reset --hard origin/master
 You can also replace the default `pull` method by a custom method:
 
 ```ruby
-# setup roles
-BlackStack::Deployer.add_role({
+# setup deploying profiles
+BlackStack::Deployer.add_deploying_profile({
 	:name => 'sinatra-webserver',
   :source_code_path => '~/code/tempora'
   :os => BlackStack::Deployer::LINUX,
@@ -351,8 +355,8 @@ Here is a good example about how we work dynamically defined methods:
 Updating public gems is about running `bundler update` in the remote computer.
 
 ```ruby
-# setup roles
-BlackStack::Deployer.add_role({
+# setup deploying profiles
+BlackStack::Deployer.add_deploying_profile({
 	:name => 'sinatra-webserver',
   :source_code_path => '~/code/tempora'
   :os => BlackStack::Deployer::LINUX,
@@ -375,8 +379,8 @@ bundler update
 Updating private gems is about removing some gems that you store them privately in some directory inside the source code.
 
 ```ruby
-# setup roles
-BlackStack::Deployer.add_role({
+# setup deploying profiles
+BlackStack::Deployer.add_deploying_profile({
 	:name => 'sinatra-webserver',
   :source_code_path => '~/code/tempora'
   :os => BlackStack::Deployer::LINUX,
@@ -408,8 +412,8 @@ Releasing an update of the configuration file is a bit trcky, because configurat
 In consequence, when you have to specify a local path in your own computer from where you are running the deploying job.
 
 ```ruby
-# setup roles
-BlackStack::Deployer.add_role({
+# setup deploying profiles
+BlackStack::Deployer.add_deploying_profile({
 	:name => 'sinatra-webserver',
   :source_code_path => '~/code/tempora'
   :os => BlackStack::Deployer::LINUX,
@@ -437,8 +441,8 @@ and
 The `:restart_sinatra` is about restart the sinatra web server.
 
 ```ruby
-# setup roles
-BlackStack::Deployer.add_role({
+# setup deploying profiles
+BlackStack::Deployer.add_deploying_profile({
 	:name => 'sinatra-webserver',
   :source_code_path => '~/code/tempora'
   :os => BlackStack::Deployer::LINUX,
@@ -449,8 +453,8 @@ BlackStack::Deployer.add_role({
 Consider that you may have more than one sinatra processes, each one listening one different port:
 
 ```ruby
-# setup roles
-BlackStack::Deployer.add_role({
+# setup deploying profiles
+BlackStack::Deployer.add_deploying_profile({
 	:name => 'sinatra-webserver',
   :source_code_path => '~/code/tempora'
   :os => BlackStack::Deployer::LINUX,
@@ -471,8 +475,8 @@ As of today, our [Pampa](https://github.com/leandrosardi/pampa) is not providing
 So, restarting Pampa Workers is a brute force game of killing proccess and launching them again.
 
 ```ruby
-# setup roles
-BlackStack::Deployer.add_role({
+# setup deploying profiles
+BlackStack::Deployer.add_deploying_profile({
 	:name => 'sinatra-webserver',
   :source_code_path => '~/code/tempora'
   :os => BlackStack::Deployer::LINUX,
