@@ -46,7 +46,7 @@ BlackStack::Deployer.set({
     # 2. do a change dir to `./gems`; and
     # 3. do `gem uninstall --all -I #{name}` and a `gem install #{name}`, for all the gems listed on `:private_gems`
     :update_private_gems => true,
-    :list_of_private_gems => ['stealth_browser_automation', 'bots', 'nextbot'],
+    :list_of_private_gems => ['~/code/tempora/gems/stealth_browser_automation', '~/code/tempora/gems/bots', '~/code/tempora/gems/nextbot'],
 
     # activate this flag to:
     # 1. do a change dir to `:source_code_path`; 
