@@ -111,7 +111,7 @@ Here's what makes Pampa Deployer great:
 
 5. Everything in **Pampa Deployer** comes down to running SSH or Powershell commands on remote servers. On the one hand, that makes Pampa Deployer simple. On the other hand, if you aren't comfortable SSH-ing into a Linux box and doing stuff on the command-line, then **Pampa Deployer** is probably not for you.
 
-## 3. Scope
+## 8. Scope
 
 As of today, **Pampa Deployer** supports:
 
@@ -150,13 +150,13 @@ and
 3. **Pampa Deployer** is also more integrated with [Pampa](https://github.com/leandrosardi/pampa), and all our projects at [ExpandedVenture](https://ExpandedVenture.com).
 
 
-## 2. Database Installation
+## 7. Database Installation
 
 **Database Installation** is about creating the schema of the database (tables, indexes, keys, triggers, store procedures, etc.)
 
 First, setup your installation job, by specifing one by one the `.sql` scripts to run.
 
-### 2.1. Configuring Database Installation Jobs
+### 7.1. Configuring Database Installation Jobs
 
 ```ruby
 BlackStack::Deployer.set({
@@ -193,7 +193,7 @@ BlackStack::Deployer.set({
 
 Then, write a little script to run the installation.
 
-### 2.2. Running Database Installation Jobs
+### 7.2. Running Database Installation Jobs
 
 
 Find the full example here: [./examples/install.rb](./examples/install.rb).
@@ -212,7 +212,7 @@ BlackStack::Deployer::db_install(nil, db_name, path, size)
 3. **size:** The initial size in MB of both data and transaction log files. The `db_install` process will replace any `%size%` wildcard in your `.sql` files.
 
 
-## 3. Database Initialization
+## 8. Database Initialization
 
 **Database Initialization** is about:
 1. populating the parametric tables; and
@@ -220,7 +220,7 @@ BlackStack::Deployer::db_install(nil, db_name, path, size)
 
 First, setup your initialization job, by specifing one by one the `.sql` scripts to run.
 
-### 3.1. Configuring Database Initialization Jobs
+### 8.1. Configuring Database Initialization Jobs
 
 ```ruby
 # Seting up deployer.
@@ -249,7 +249,7 @@ BlackStack::Deployer.set({
 
 Then, write a little script to run the initialization.
 
-### 3.2. Running Database Initialization Jobs
+### 8.2. Running Database Initialization Jobs
 
 Find the full example here: [./examples/initialize.rb](./examples/initialize.rb).
 
@@ -264,7 +264,7 @@ BlackStack::Deployer::db_initialize(nil, db_name)
 
 1. **db_name:** The name of the database. The `db_initialize` process will replace any `%database_name%` wildcard in your `.sql` files.
 
-## 4. Database Updates
+## 9. Database Updates
 
 > IMPORTANT: This feature is still on testing stage.
 
@@ -403,7 +403,7 @@ gem uninstall bots --all -I
 gem install bots
 ```
 
-## 8. Updating Configuration Files
+## 9. Updating Configuration Files
 
 > IMPORTANT: Design & code are still on development stage.
 
@@ -498,5 +498,8 @@ BlackStack::Deployer.add_deploying_profile({
 The method `BlackStack::Deployer.deploy('master')` will connect via SSH, 
 
 Then, it will run the list of `:start_pampa_one_line_commands` one by one.
+
+
+
 
 
