@@ -1,5 +1,5 @@
 Gem::Specification.new do |s|
-  s.name        = 'pampa_deployer'
+  s.name        = 'blackstack_deployer'
   s.version     = '1.1.1'
   s.date        = '2022-04-22'
   s.summary     = "THIS GEM IS STILL IN DEVELOPMENT STAGE. Distribute work along a pool of Pampa workers."
