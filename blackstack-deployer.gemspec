@@ -13,7 +13,7 @@ Gem::Specification.new do |s|
   s.license     = 'MIT'
   s.add_runtime_dependency 'net-ssh', '~> 4.1.0', '>= 4.1.0'
   s.add_runtime_dependency 'websocket', '~> 1.2.8', '>= 1.2.8'
-  s.add_runtime_dependency 'json', '~> 1.8.1', '>= 1.8.1'
+  s.add_runtime_dependency 'json', '~> 2.3.0', '>= 2.3.0'
   s.add_runtime_dependency 'pg', '~> 1.3.5', '>= 1.3.5'
   s.add_runtime_dependency 'sequel', '~> 4.28.0', '>= 4.28.0'
 end
