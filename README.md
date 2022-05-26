@@ -16,7 +16,7 @@ BlackStack::Deployer.deploy()
 **Step 1:** Install BlackStack Deployer.
 
 ```bash 
-gem intall blackstack-deployer
+gem install blackstack-deployer
 ```
 
 **Step 2:** Add the computers (nodes) where you want to run deployments.
@@ -46,6 +46,8 @@ BlackStack::Deployer::Node.add_node({
   :ssh_private_key_file => '~/certs/db.pem', 
 })
 ``` 
+
+As a final note: the only name that you can't assign to a routine `'reboot'`, because it is reserved as a native routine of **blackstack-deployer**.
 
 **Step 3:** Setup deployment routines.
 
@@ -107,7 +109,7 @@ BlackStack::Deployer::Node.add_routine({
 
 ## 3. Defining Node Profiles
 
-**Step 1:** Define a the routine that each node should run for deploying.
+**Step 1:** Define the routine that each node should run for deploying.
 
 ```ruby
 BlackStack::Deployer::Node.set_nodes([{
@@ -155,7 +157,7 @@ BlackStack::Deployer::DB::set_superuser ({
 })
 ```
 
-If you are running on Postgres, `:db_port` use to be `5432`, `:db_name` use to be `'postgres'` and `:db_user` use to be `'postgres'` too.
+If you are running on PostgreSQL, `:db_port` use to be `5432`, `:db_name` use to be `'postgres'` and `:db_user` use to be `'postgres'` too.
 
 **Step 2:** Setup the Parameters of the New Database.
 
@@ -266,7 +268,7 @@ VALUES ('1fde0820-ae46-4687-ab4b-d8196f6e5bd0', 'ar', 'Argentina') ON CONFLICT D
 
 ## 7. Advanced Features
 
-There are some advanced feature that make **blackstack-deployer** more versatile.
+There are some advanced features that make **blackstack-deployer** more versatile.
 
 ### 7.1. Requesting node reboot 
 
@@ -309,8 +311,6 @@ BlackStack::Deployer::Node.add_nodes([{
   :hostname => 'dbsrv',
 }])
 ```
-
-The only key that you can't use is `:reboot`, because it is reserved as a native routine of **blackstack-deployer**.
 
 ### 7.3. Calling sub-routines
 
