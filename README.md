@@ -1,505 +1,309 @@
-# Pampa Deployer
+# BlackStack Deployer
 
-**Pampa Deployer** is a Ruby gem for automated software installation and deploying of new versions, along a large pool of computers, with just one line of code.
+**BlackStack Deployer** automates what you already know how to do manually, but in a repeatable, scalable fashion. There is no magic here!
 
 ```ruby
 # deploy new version
-BlackStack::Deployer.deploy(branch_name)
+BlackStack::Deployer.deploy()
 ```
+
+## For Any Language
+
+**BlackStack Deployer** has been written in Ruby, but it can easily be used to deploy any language.
 
 ## 1. Getting Started
 
-Install Pampa Deployer
+**Step 1:** Install BlackStack Deployer.
 
 ```bash 
-gem intall pampa_deployer
+gem intall blackstack-deployer
 ```
 
-Write your configuration file up to date.
+**Step 2:** Add the computers (nodes) where you want to run deployments.
+
+**Important:** The **user** must be a sudoer. 
 
 ```ruby
-# setup deploying profiles for different kind of servers.
-BlackStack::Deployer.set({
-  :deploying_profiles => [{
-    # this is the name to identify the profile
-    :name => 'sinatra-webserver',
+require 'blackstack-deployer'
 
-    # this the the folder where the source code is hosted
-    :source_code_path => '~/code/tempora'
+# setup nodes
+BlackStack::Deployer::Node.set_nodes({
+  :net_remote_ip => 's1.mydomain.com', 
+  :ssh_username => 'username', 
+  :ssh_password => 'password', 
+}, { 
+  :net_remote_ip => 's2.mydomain.com', 
+  :ssh_username => 'username', 
+  :ssh_password => 'password', 
+})
+```
 
-    # if `:os` is `BlackStack::Deployer::LINUX` it will connect via SSH, and run `bash` commands.
-    # if `:os` is `BlackStack::Deployer::WIN` it will connect via PowerSheel, and run `win-cmd` commands.
-    :os => BlackStack::Deployer::LINUX,
+**Step 3:** Setup deployment routines.
 
-    # activate this flag to:
-    # 1. do a change dir to `:source_code_path`; and
-    # 2. do a `git fetch --all` and `git reset --all origin/#{branch_name}`.
-    :pull_source_code => true,
+```ruby
+# setup deploying rutines
+BlackStack::Deployer::Node.set_routines({
+  :name => 'pull-source-code',
+  :commands => [
+    { :command => 'cd ~/code/myrpa' },
+    { :command => 'git fetch --all' },
+    { :command => 'git reset --hard origin/main' },
+  ],
+}, {
+  :name => 'restart-rpa',
+  :commands => [
+    { :command => 'pkill xterm' },
+    { :command => 'xterm -e bash -c "cd ~/code/myrpa;./rpa.rb;bash"' },
+  ],
+});
+```
 
-    # activate this flag to:
-    # 1. do a change dir to `:source_code_path`; and
-    # 2. do a `bundler update`.
-    :update_public_gems => true,
+**Step 4:** Run a deployment routine
 
-    # activate this flag to:
-    # 1. do a change dir to `:source_code_path`; 
-    # 2. do a change dir to `./gems`; and
-    # 3. do `gem uninstall --all -I #{name}` and a `gem install #{name}`, for all the gems listed on `:private_gems`
-    :update_private_gems => true,
-    :list_of_private_gems => ['~/code/tempora/gems/stealth_browser_automation', '~/code/tempora/gems/bots', '~/code/tempora/gems/nextbot'],
+```ruby
+BlackStack::Deployer::Node.run('s1.mydomain.com', 'pull-source-code');
+# => true
+```
 
-    # activate this flag to:
-    # 1. do a change dir to `:source_code_path`; 
-    # 2. rename each one of the existing configuration files with `mv ./#{host_filename} ./#{host_filename}.#{Time.now.utc.strftime("%Y%m%d%H%M%S")}`; 
-    # 3. create a new file `./#{config_filename}`; and
-    # 4. paste a new content `./#{}`
-    :update_configuration_files => true,
-    :list_of_configuration_files => [
-      { :local_path => "c:\\mycode\\tempora\\config_for_production.yaml", :host_filename => '~/code/tempora/config.yaml' }, 
-      { :local_path => "c:\\mycode\\tempora\\db_password_for_production.yaml", :host_filename => '~/code/tempora/db_password.yaml' }, 
-    ]
+## 2. Adding Validations
 
-    # activate this flag if you want to restart all the sinatra webservers running.
-    # consider they may be more than 1 sinatra processes. 
-    :restart_sinatra => true,
-    :sinatra_ports => [80, 81, 82],
+You validate the output of each command with an array of regular experessions (`:matches`).
 
-    # activate this flag to do:
-    # 1. run all the one-line commands in the `kill_pampa_one_line_commands` array; and then
-    # 2. run all the one-line commands in the `start_pampa_one_line_commands` array. 
-    :restart_pampa => true,
-    :kill_pampa_one_line_commands => [
-      'kill xterm',
-      'kill ruby',
-      'kill chrome',
-      'kill firefox',
-      'kill terminal',
-    ]
-    :start_pampa_one_line_commands => [
-      'xterm -e bash -c "cd ~/code/tempora;./shm.rb;bash"',
-      'xterm -e bash -c "cd ~/code/tempora;./mlalistener.rb port=45010;bash"',
-    ] 
+You can also look for a list of well known error messages, listed in the `:nomatches` key.
+
+```ruby
+# setup deploying rutines for different kind of servers.
+BlackStack::Deployer::Node.add_routines({
+  :deploying_rutines => [{
+    # download the latest version of source code
+    :name => 'restart-webserver',
+    # run additional bash commands, and validate outputs.
+    # 
+    # :command is a string with the command to run.
+    # :matches is either a regular expression or an array of regular experessions. The command output must match with all of them.
+    # :nomatches is either a regular expression or an array of regular experessions. The command output must dis-match with all of them.
+    # 
+    :commands => [
+      { :command => 'cd ~/code/mywebserver' },
+      { 
+        :command => 'ruby ./webserver.rb --restart', 
+        :matches => /Restarted Successfully/, 
+        :nomatches => [
+          { :nomatch => /Permission Denied/, :error => 'no grants' },
+          { :nomatch => /Command not found/, :error => 'kill command is not installed' },
+        ]
+      },
+    ],
   }],
 });
 ```
 
-Then, add the computers where you want to run deployments.
+## 3. Defining Node Profiles
+
+**Step 1:** Define deployment profiles.
 
 ```ruby
-# setup computers
-BlackStack::Deployer.set({
-  :hosts => [
-    { :internet_address => 'ws1.mydomain.com', :remote_access_user => 'computer username', :remote_access_password => 'computer password', :deploying_profile=>'sinatra-webserver' },
-    { :internet_address => 'ws2.mydomain.com', :remote_access_user => 'computer username', :remote_access_password => 'computer password', :deploying_profile=>'sinatra-webserver' },
-  ]
+BlackStack::Deployer::Node.set_profiles({
+  :name => 'rpa-node',
+  :routines => [
+    { :routine => 'pull-source-code' },
+    { :routine => 'restart-rpa' },
+  ],
+}, {
+  :name => 'webserver-node',
+  :routines => [
+    { :routine => 'pull-source-code' },
+    { :routine => 'restart-webserver' },
+  ],
+});
+```
+
+**Step 2:** Define nodes again.
+
+```ruby
+BlackStack::Deployer::Node.set_nodes({
+  :net_remote_ip => 's1.mydomain.com', 
+  :ssh_username => 'username', 
+  :ssh_password => 'password', 
+  :deployment_profile => 'rpa-node',
+}, { 
+  :net_remote_ip => 's2.mydomain.com', 
+  :ssh_username => 'username', 
+  :ssh_password => 'password', 
+  :deployment_profile => 'rpa-node'
 })
 ```
 
-## 2. Abstract
+**Step 3:** Run deployment for all nodes.
 
-**Pampa Deployer** automates what you already know how to do manually, but in a repeatable, scalable fashion. There is no magic here!
-
-Here's what makes Pampa Deployer great:
-
-1. **Strong conventions**: **Pampa Deployer** defines a standard deployment process that all Pampa Deployer-enabled projects follow by default. You don't have to decide how to structure your scripts, where deployed files should be placed on the server, or how to perform common tasks: Pampa Deployer has done this work for you.
-
-2. **Multiple stages**: Define your deployment once, and then easily parameterize it for multiple stages (environments), e.g. qa, staging, and production. No copy-and-paste necessary: you only need to specify what is different for each stage, like IP addresses.
-
-3. **Parallel execution**: Deploying to a fleet of app servers? Pampa Deployer can run each deployment task concurrently across those servers and uses connection pooling for speed.
-
-4. **Server deploying profiles**: Your application may need many different types of servers: a database server, an app server, two web servers, and a job queue work server, for example. Pampa Deployer lets you tag each server with one or more deploying profiles, so you can control what tasks are executed where.
-
-5. Everything in **Pampa Deployer** comes down to running SSH or Powershell commands on remote servers. On the one hand, that makes Pampa Deployer simple. On the other hand, if you aren't comfortable SSH-ing into a Linux box and doing stuff on the command-line, then **Pampa Deployer** is probably not for you.
-
-## 8. Scope
-
-As of today, **Pampa Deployer** supports:
-
-1. database installation & initialization; and
-2. releasing database updates.
-
-And we are activelly working to add these features:
-
-3. releasing new source versions; 
-4. installation / update of public gems specified in the `Gemfile`;
-5. installation / update of private gems hosted on some path inside the source code; 
-6. updating configuration files;
-7. restarting [Sinatra](http://sinatrarb.com/) web servers;
-8. restarting [Pampa](https://github.com/leandrosardi/pampa) workers.
-
-## 4. For Any Language
-
-**Pampa Deployer** written in Ruby, but it can easily be used to deploy any language.
-
-## 5. Dependencies
-
-**Pampa Deployer** uses
-
-1. [Sequel](https://github.com/jeremyevans/sequel) for connecting databases;
-2. [Net::SSH](https://github.com/net-ssh/net-ssh) for connecting Linux servers via SSH;
-3. [WinRM](https://github.com/WinRb/WinRM) for connecting Windows servers via PowerShell;
-and
-4. [Bundler](https://bundler.io/) for installing/updating gems.
-
-## 6. Why Not Capistrano?
-
-1. [Capistrano](https://capistranorb.com/) is not fully supporting [Sinatra](http://sinatrarb.com/) or it is not well documented about.
-
-2. [Capistrano](https://capistranorb.com/) is not supporting [PowerShell](https://docs.microsoft.com/en-us/powershell/) to work on Windows computers.
-
-3. **Pampa Deployer** is also more integrated with [Pampa](https://github.com/leandrosardi/pampa), and all our projects at [ExpandedVenture](https://ExpandedVenture.com).
-
+```ruby
+BlackStack::Deployer::Node.deploy()
+```
 
 ## 7. Database Installation
 
-**Database Installation** is about creating the schema of the database (tables, indexes, keys, triggers, store procedures, etc.)
+**Database Installation** is about creating a new database on your server.
 
-First, setup your installation job, by specifing one by one the `.sql` scripts to run.
+**Important:** This is the only feature that is compatible with PostgreSQL and only with PostgreSQL.
+If you are running with  other RDBMS, you should perform this database cration manually.
 
-### 7.1. Configuring Database Installation Jobs
+**Step 1:** Setup Database Connection with All Grants.
 
-```ruby
-BlackStack::Deployer.set({
-  # Scripts to install the database schema.
-  # List them in the order they must be executed.
-  # By convention, filenames for installation must match with `/^0./`.
-  :database_installation_files=>[
-    { 
-      :filename=>'./sql/0.a.base-schema.ddl.tsql.sql', 
-      :critical=>true, 
-      :description=>'All the objects, excel the full-text indexes who are not supported by SQLExpress. This file is critical to keep running the deploying process.', 
-    },
-    { 
-      :filename=>'./sql/0.b.full-text-indexes.ddl.tsql.sql', 
-      :critical=>false, 
-      :description=>'All the full-text indexes, who are not supported by SQLExpress. Deploying process may keep running even if this file finishes with errors.',
-    },    
-  ],
-});
-```
+This connection is required to create 
 
-**Specifications:**
-
-1. Set the `:critical` flag in `true` if you want to abort the job if such a file doesn't finish successfully.  
-
-2. The values in the `:filename` entries should match with either `/\.tsql\./` or `/\.sentences\./`.
-
-	- The `/\.tsql\./` files will be processsed each transact-sql codes one by one; each one separated by a `GO` statement
-
-	- The `/\.sentences\./` files will be processed line by line, assuming that each line is one sentence. Example: a list of insert statements.
-
-3. The values in the `:filename` entries should match with `/^0\./` when you are defining the **database installation** job.
-
-
-Then, write a little script to run the installation.
-
-### 7.2. Running Database Installation Jobs
-
-
-Find the full example here: [./examples/install.rb](./examples/install.rb).
+1. the new database;
+2. the new user to access the new database; and
+3. grant the new user to read and write on the new database.
 
 ```ruby
-# create a Sequel database connection
-DB = Sequel.connect(connection_descriptor)
-# run a database installation
-BlackStack::Deployer::db_install(nil, db_name, path, size)
-```
-
-**Parameters:**
-
-1. **db_name:** The name of the database. The `db_install` process will replace any `%database_name%` wildcard in your `.sql` files.
-2. **path:** The location to store the both data and transaction log files. The `db_install` process will replace any `%path%` wildcard in your `.sql` files.
-3. **size:** The initial size in MB of both data and transaction log files. The `db_install` process will replace any `%size%` wildcard in your `.sql` files.
-
-
-## 8. Database Initialization
-
-**Database Initialization** is about:
-1. populating the parametric tables; and
-2. seed some tables like. Example: insert the first record in the `[user]` with demo credentials.
-
-First, setup your initialization job, by specifing one by one the `.sql` scripts to run.
-
-### 8.1. Configuring Database Initialization Jobs
-
-```ruby
-# Seting up deployer.
-BlackStack::Deployer.set({
-  # Script to insert the parametric values into the new database.
-  # List them in the order they must be executed.
-  # By convention, the filenames for initialization must match with `/^1./`.
-  :database_initialization_files=>[
-    { 
-      :filename=>'./sql/1.a.parametric-tables.dml.sentences.sql', 
-      :critical=>true, 
-      :description=>'Add records to parametric tables. This file is critical to keep running the deploying process.', 
-    },
-    { 
-      :filename=>'./sql/1.b.parametric-tables.dml.tsql.sql', 
-      :critical=>true, 
-      :description=>'Add records to parametric tables. This file is critical to keep running the deploying process.', 
-    },
-  ],
+# DB ACCESS - KEEP IT SECRET
+BlackStack::Deployer::DB::set_superuser ({
+  :db_url => 'db.mydomain.com',
+  :db_port => '5432',
+  :db_name => 'any-master-database',
+  :db_user => 'superadmin-username',
+  :db_password => 'superadmin-password',
 })
 ```
 
+If you are running on Postgres, `:db_port` use to be `5432`, `:db_name` use to be `'postgres'` and `:db_user` use to be `'postgres'` too.
+
+**Step 2:** Setup the Parameters of the New Database.
+
+```ruby
+# DB ACCESS - KEEP IT SECRET
+BlackStack::Deployer::DB::set_new_db ({
+  :db_name => 'blackstack',
+  :db_user => 'blackstack',
+  :db_password => 'bsws2022',
+})
+```
+
+**Step 3:** Create the new database.
+
+```ruby
+BlackStack::Deployer::DB::create
+# => true
+```
+
+## 8. Running Database Updates
+
+Running database updates consists in:
+
+1. creating the schema of the database,
+(tables, indexes, keys, triggers, store procedures, etc.);
+
+2. insert seed rows on the tables; and
+
+3. run updates for both types: DDL and DML.
+
+**Step 1:** Define the folder where you host all your `.sql` files.
+
+```ruby
+BlackStack::Deployer::DB::set_folder ('~/code/myrpa/sql');
+# => true
+```
+
+**Step 2:** Add some files in your `sql` folder.
+
+This command,
+
+```bash
+cd ~/code/myrpa/sql
+ls
+```
+
+may show something like this:
+
+```
+20220525.1.transactions.sql
+20220525.2.sentences.sql
+20220527.1.transactions.sql
+```
+
 **Specifications:**
 
-1. The values in the `:filename` entries should match with `/^1\./` when you are defining the **database initialization** job.
+1. The filenames matching with `/\.transactions\.sql$/` processes each block delimited by `BEGIN;` / `COMMIT;` lines. Block by block.
 
-Then, write a little script to run the initialization.
+2. The filnames matching with `/\.sentences\.sql$/` will split the content by `/;/`, and will process sentence by sentence.
 
-### 8.2. Running Database Initialization Jobs
+If a filename doesn't match with neither `/\.transactions\.sql$/` nor `/\.sentences\.sql$/` it will be assume it is a file of **sentences** by default. 
 
-Find the full example here: [./examples/initialize.rb](./examples/initialize.rb).
+As a final note, we recommend you start each filename with something like 'YYYYMMDD.N.' in order the sort them by the files creation time, which use to be the same order you want the files be processed.
+
+**Step 3:** Process the `.sql` files.
 
 ```ruby
-# create a Sequel database connection
-DB = Sequel.connect(connection_descriptor)
-# run a database initialization
-BlackStack::Deployer::db_initialize(nil, db_name)
+BlackStack::Deployer::DB::deploy();
+# => true
 ```
 
-**Parameters:**
+Files will be sorted by name, and processed following such an order.
 
-1. **db_name:** The name of the database. The `db_initialize` process will replace any `%database_name%` wildcard in your `.sql` files.
+## 9. Reprocessing Database Updates
 
-## 9. Database Updates
+It is a good practice that any `.sql` file can be reprocessed without raising any exception.
 
-> IMPORTANT: This feature is still on testing stage.
+**Example 1:** The script below, with the `IF NOT EXISTS` declaration, will attempt to create a table, and it won't raise any exception of the table already exists.
 
-**Database Update** is about running a series of `.sql` files for executing DDL (data definition language) and/or DML (data manipulation language) updates.
-
-```ruby
-# create a Sequel database connection
-DB = Sequel.connect(connection_descriptor)
-# run a database update
-BlackStack::Deployer::db_update(nil, db_name, sql_path, last_filename)
+```sql
+-- possible countries assigned to a user.
+CREATE TABLE IF NOT EXISTS country(
+	id uuid NOT NULL PRIMARY KEY,
+	code char(500) NOT NULL,
+	name char(500) NOT NULL
+);
 ```
 
-**Parameters:**
+**Example 2:** The script below, with the `ON CONFLICT DO NOTHING` declaration, will attempt to insert a record, and it won't raise any exception of the `id` already exists.
 
-1. **db_name:** The name of the database. The `db_install` process will replace any `%database_name%` wildcard in your `.sql` files.
-2. **sql_path:** The location where find the `.sql` files to run. They will be executed one by one, in alphabetical order.
-3. **last_filename:** The name of the last file processed, so your process can resume from where it finished in the last job.
+```sql
+INSERT INTO country (id, code, name) 
+VALUES ('1fde0820-ae46-4687-ab4b-d8196f6e5bd0', 'ar', 'Argentina') ON CONFLICT DO NOTHING;
+```
 
-**Specifications:**
+## 10. Advanced Features
 
-1. All files are considered as critical. If any file fails, the exception is raised.
+There are some advanced feature that make **blackstack-deployer** more versatile.
 
-2. The name of all files should match with either `/\.tsql\./` or `/\.sentences\./`.
+### 10.1. Requesting node reboot 
 
-	- The `/\.tsql\./` files will be processsed each transact-sql codes one by one; each one separated by a `GO` statement
-
-	- The `/\.sentences\./` files will be processed line by line, assuming that each line is one sentence. Example: a list of insert statements.
-
-3. The name of files should be higher than `'1'` (and `/^0\./` too), so you can store all files (installation, initializations, updates) in the same path, and run them all together if you want.
-
-## 5. Releasing New Source Code Versions 
-
-> IMPORTANT: Design & code are still on development stage.
-
-Releasing new source code is about connecting a computer, and running git commands for pulling the latest version of a source code.
+You can request node reboot as part of a routine. 
 
 ```ruby
-# setup deploying profiles
-BlackStack::Deployer.add_deploying_profile({
-	:name => 'sinatra-webserver',
-  :source_code_path => '~/code/tempora'
-  :os => BlackStack::Deployer::LINUX,
-  :pull_source_code => true, 
+# setup deploying rutines for different kind of servers.
+BlackStack::Deployer::Node.add_routines({
+  :deploying_rutines => [{
+    :name => 'change-server-name',
+    :commands => [
+      { :command => "echo 'newhostname' > /etc/hostname" },
+      { :command => :reboot },
+    ],
+  }],
 });
 ```
 
-The method `BlackStack::Deployer.deploy('master')` will connect via SSH, run the following bash script, and return the output of the execution:
+### 10.2. Resuming database deploying from last checkpoint
 
-```bash
-bash --login
-cd ~/code/tempora
-git fetch --all
-git reset --hard origin/master
-```
+Usually, the first files in the `sql` folder are regrding the creation of the schema and the seed records.
 
-You can also replace the default `pull` method by a custom method:
+As long as you work on your software, more `.sql` files will be added, but you don't want to process all the files from the begining each time you have to deploy an update.
+
+Instead, you can choose the last file processed in order to resume the update from that point.
 
 ```ruby
-# setup deploying profiles
-BlackStack::Deployer.add_deploying_profile({
-	:name => 'sinatra-webserver',
-  :source_code_path => '~/code/tempora'
-  :os => BlackStack::Deployer::LINUX,
-  :pull_source_code => true, 
-  :pulling_function => Proc.new do |ssh, *args|
-    stdout = ssh.exec!("
-      bash --login
-      cd ~/code/tempora
-      git fetch --all
-      git reset --hard origin/master
-      chmod +x ~/code/tempora/*.rb
-      chmod +x ~/code/tempora/p/*.rb
-      chmod +x ~/code/tempora/cli/*.rb
-      chmod +x ~/code/tempora/bash/*.sh
-    ")
-    stdout
-  end,
-});
+BlackStack::Deployer::DB::deploy('20220527.1.transactions.sql');
+# => true
 ```
 
-Here is a good example about how we work dynamically defined methods:
-[https://github.com/leandrosardi/pampa_dispatcher/blob/1.1.0/lib/pampa_dispatcher.rb#L143](https://github.com/leandrosardi/pampa_dispatcher/blob/1.1.0/lib/pampa_dispatcher.rb#L143)
-
-## 6. Updating Public Gems
-
-> IMPORTANT: Design & code are still on development stage.
-
-Updating public gems is about running `bundler update` in the remote computer.
-
-```ruby
-# setup deploying profiles
-BlackStack::Deployer.add_deploying_profile({
-	:name => 'sinatra-webserver',
-  :source_code_path => '~/code/tempora'
-  :os => BlackStack::Deployer::LINUX,
-  :update_public_gems => true, 
-});
-```
-
-The method `BlackStack::Deployer.deploy('master')` will connect via SSH, run the following bash script, and return the output of the execution:
-
-```bash
-bash --login
-cd ~/code/tempora
-bundler update
-```
-
-## 7. Updating Private Gems 
-
-> IMPORTANT: Design & code are still on development stage.
-
-Updating private gems is about removing some gems that you store them privately in some directory inside the source code.
-
-```ruby
-# setup deploying profiles
-BlackStack::Deployer.add_deploying_profile({
-	:name => 'sinatra-webserver',
-  :source_code_path => '~/code/tempora'
-  :os => BlackStack::Deployer::LINUX,
-  :update_private_gems => true,
-  :list_of_private_gems => ['~/code/tempora/gems/stealth_browser_automation', '~/code/tempora/gems/bots'],
-});
-```
-
-The method `BlackStack::Deployer.deploy('master')` will connect via SSH, run the following bash script, and return the output of the execution:
-
-```bash
-bash --login
-
-cd ~/code/tempora/gems
-gem uninstall stealth_browser_automation --all -I
-gem install stealth_browser_automation
-
-cd ~/code/tempora/gems
-gem uninstall bots --all -I
-gem install bots
-```
-
-## 9. Updating Configuration Files
-
-> IMPORTANT: Design & code are still on development stage.
-
-Releasing an update of the configuration file is a bit trcky, because configuration files have some secretive infromation (like database passwords) that you don't want to push to the repository.
-
-In consequence, when you have to specify a local path in your own computer from where you are running the deploying job.
-
-```ruby
-# setup deploying profiles
-BlackStack::Deployer.add_deploying_profile({
-	:name => 'sinatra-webserver',
-  :source_code_path => '~/code/tempora'
-  :os => BlackStack::Deployer::LINUX,
-  :update_configuration_files => true,
-  :list_of_configuration_files => [
-    { :local_path => "c:\\mycode\\tempora\\config_for_production.yaml", :host_path => '~/code/tempora/config.yaml' }, 
-    { :local_path => "c:\\mycode\\tempora\\db_password_for_production.yaml", :host_path => '~/code/tempora/db_password.yaml' }, 
-  ]
-});
-```
-
-The method `BlackStack::Deployer.deploy('master')` will connect via SSH, and:
-
-1. It will backup old version of configuration files.
-The backup file will have names like `~/code/tempora/config.yyyymmddhhmmmss.yaml`.
-
-and
-
-2. It will create/rewrite configuration files.
-
-## 9. Restarting [Sinatra](http://sinatrarb.com/) Web Servers
-
-> IMPORTANT: Design & code are still on development stage.
-
-The `:restart_sinatra` is about restart the sinatra web server.
-
-```ruby
-# setup deploying profiles
-BlackStack::Deployer.add_deploying_profile({
-	:name => 'sinatra-webserver',
-  :source_code_path => '~/code/tempora'
-  :os => BlackStack::Deployer::LINUX,
-  :restart_sinatra => true,
-});
-```
-
-Consider that you may have more than one sinatra processes, each one listening one different port:
-
-```ruby
-# setup deploying profiles
-BlackStack::Deployer.add_deploying_profile({
-	:name => 'sinatra-webserver',
-  :source_code_path => '~/code/tempora'
-  :os => BlackStack::Deployer::LINUX,
-  :restart_sinatra => true,
-  :sinatra_ports => [80, 81, 82],
-});
-```
-
-The method `BlackStack::Deployer.deploy('master')` will connect via SSH, restart all the web servers, and return `true` only if the restartings have been done successfully.
 
 
-## 10. Restarting [Pampa](https://github.com/leandrosardi/pampa) Workers
+## 10. Dependencies
 
-> IMPORTANT: Design & code are still on development stage.
+**BlackStack Deployer** uses
 
-As of today, our [Pampa](https://github.com/leandrosardi/pampa) is not providing any method to restart the workers from source code.
-
-So, restarting Pampa Workers is a brute force game of killing proccess and launching them again.
-
-```ruby
-# setup deploying profiles
-BlackStack::Deployer.add_deploying_profile({
-	:name => 'sinatra-webserver',
-  :source_code_path => '~/code/tempora'
-  :os => BlackStack::Deployer::LINUX,
-  :restart_pampa => true,
-  :kill_pampa_one_line_commands => [
-    'kill xterm',
-    'kill ruby',
-    'kill chrome',
-    'kill firefox',
-    'kill terminal',
-  ]
-  :start_pampa_one_line_commands => [
-    'xterm -e bash -c "cd ~/code/tempora;./shm.rb;bash"',
-    'xterm -e bash -c "cd ~/code/tempora;./mlalistener.rb port=45010;bash"',
-  ] 
-});
-```
-
-The method `BlackStack::Deployer.deploy('master')` will connect via SSH, 
-
-Then, it will run the list of `:start_pampa_one_line_commands` one by one.
-
-
-
+1. [pg](https://rubygems.org/gems/pg/) for connecting PostgreSQL database; 
+2. [Sequel](https://github.com/jeremyevans/sequel) for simplifying some database tasks;
+3. [Net::SSH](https://github.com/net-ssh/net-ssh) for connecting Linux servers via SSH;
 
 
