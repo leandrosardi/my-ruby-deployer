@@ -289,14 +289,60 @@ BlackStack::Deployer::Node.add_routines({
   :deploying_rutines => [{
     :name => 'change-server-name',
     :commands => [
-      { :command => "echo 'newhostname' > /etc/hostname" },
+      { :command => "echo 'dbsrv1' > /etc/hostname" },
       { :command => :reboot },
     ],
   }],
 });
 ```
 
-### 10.2. Resuming database deploying from last checkpoint
+### 10.2. Pass routine parameters
+
+Your can define parameters parameters between `%` chars, as is shown in the code below.
+
+```ruby
+# setup deploying rutines for different kind of servers.
+BlackStack::Deployer::Node.add_routines({
+  :deploying_rutines => [{
+    :name => 'change-server-name',
+    :commands => [
+      { :command => "echo '%hostname%' > /etc/hostname" },
+      { :command => :reboot },
+    ],
+  }],
+});
+```
+
+The value to assign will be taken from the hash descriptor of the node.
+
+```ruby
+BlackStack::Deployer::Node.set_nodes({
+  :net_remote_ip => 'db.mydomain.com', 
+  :ssh_username => 'username', 
+  :ssh_password => 'password', 
+  :deployment_profile => 'db-node',
+  :hostname => 'dbsrv',
+})
+```
+
+### 10.3. Calling sub-routines
+
+You can request the execution of a routine as part of a bigger routine. 
+
+```ruby
+# setup deploying rutines for different kind of servers.
+BlackStack::Deployer::Node.add_routines({
+  :deploying_rutines => [{
+    :name => 'installation',
+    :commands => [
+      { :command => :change-server-name },
+      { :command => :reboot },
+    ],
+  }],
+});
+```
+
+### 10.4. Resuming database deploying from last checkpoint
 
 Usually, the first files in the `sql` folder are regrding the creation of the schema and the seed records.
 
