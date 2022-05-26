@@ -129,7 +129,7 @@ BlackStack::Deployer::Node.set_nodes([{
 BlackStack::Deployer::Node.deploy()
 ```
 
-## 7. Database Installation
+## 4. Database Installation
 
 **Database Installation** is about creating a new database on your server.
 
@@ -175,7 +175,7 @@ BlackStack::Deployer::DB::create
 # => true
 ```
 
-## 8. Running Database Updates
+## 5. Running Database Updates
 
 This feature works with any RDBMS supported by [Sequel](https://sequel.jeremyevans.net/).
 
@@ -242,7 +242,7 @@ BlackStack::Deployer::DB::deploy();
 
 Files will be sorted by name, and processed following such an order.
 
-## 9. Reprocessing Database Updates
+## 6. Reprocessing Database Updates
 
 It is a good practice that any `.sql` file can be reprocessed without raising any exception.
 
@@ -264,11 +264,11 @@ INSERT INTO country (id, code, name)
 VALUES ('1fde0820-ae46-4687-ab4b-d8196f6e5bd0', 'ar', 'Argentina') ON CONFLICT DO NOTHING;
 ```
 
-## 10. Advanced Features
+## 7. Advanced Features
 
 There are some advanced feature that make **blackstack-deployer** more versatile.
 
-### 10.1. Requesting node reboot 
+### 7.1. Requesting node reboot 
 
 You can request node reboot as part of a routine. 
 
@@ -283,7 +283,7 @@ BlackStack::Deployer::Node.add_routines([{
 }]);
 ```
 
-### 10.2. Pass routine parameters
+### 7.2. Pass routine parameters
 
 Your can define parameters parameters between `%` chars, as is shown in the code below.
 
@@ -312,7 +312,7 @@ BlackStack::Deployer::Node.add_nodes([{
 
 The only key that you can't use is `:reboot`, because it is reserved as a native routine of **blackstack-deployer**.
 
-### 10.3. Calling sub-routines
+### 7.3. Calling sub-routines
 
 You can request the execution of a routine as part of a bigger routine. 
 
@@ -327,7 +327,7 @@ BlackStack::Deployer::Node.add_routines([{
 }]);
 ```
 
-### 10.4. Resuming database deploying from last checkpoint
+### 7.4. Resuming database deploying from last checkpoint
 
 Usually, the first files in the `sql` folder are regrding the creation of the schema and the seed records.
 
@@ -340,7 +340,7 @@ BlackStack::Deployer::DB::deploy('20220527.1.transactions.sql');
 # => true
 ```
 
-## 11. Dependencies
+## 8. Dependencies
 
 **BlackStack Deployer** uses
 
