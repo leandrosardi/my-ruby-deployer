@@ -67,14 +67,13 @@ BlackStack::Deployer::Node.run('s1.mydomain.com', 'pull-source-code');
 
 ## 2. Adding Validations
 
-You validate the output of each command with an array of regular experessions (`:matches`).
+You can validate the output of each command with an array of regular experessions (`:matches`).
 
 You can also look for a list of well known error messages, listed in the `:nomatches` key.
 
 ```ruby
 # setup deploying rutines for different kind of servers.
-BlackStack::Deployer::Node.add_routines({
-  :deploying_rutines => [{
+BlackStack::Deployer::Node.add_routines([{
     # download the latest version of source code
     :name => 'restart-webserver',
     # run additional bash commands, and validate outputs.
@@ -94,8 +93,7 @@ BlackStack::Deployer::Node.add_routines({
         ]
       },
     ],
-  }],
-});
+}]);
 ```
 
 ## 3. Defining Node Profiles
@@ -103,7 +101,7 @@ BlackStack::Deployer::Node.add_routines({
 **Step 1:** Define deployment profiles.
 
 ```ruby
-BlackStack::Deployer::Node.set_profiles({
+BlackStack::Deployer::Node.set_profiles([{
   :name => 'rpa-node',
   :routines => [
     { :routine => 'pull-source-code' },
@@ -115,13 +113,13 @@ BlackStack::Deployer::Node.set_profiles({
     { :routine => 'pull-source-code' },
     { :routine => 'restart-webserver' },
   ],
-});
+}]);
 ```
 
 **Step 2:** Define nodes again.
 
 ```ruby
-BlackStack::Deployer::Node.set_nodes({
+BlackStack::Deployer::Node.set_nodes([{
   :net_remote_ip => 's1.mydomain.com', 
   :ssh_username => 'username', 
   :ssh_password => 'password', 
@@ -131,7 +129,7 @@ BlackStack::Deployer::Node.set_nodes({
   :ssh_username => 'username', 
   :ssh_password => 'password', 
   :deployment_profile => 'rpa-node'
-})
+}])
 ```
 
 **Step 3:** Run deployment for all nodes.
@@ -324,6 +322,8 @@ BlackStack::Deployer::Node.set_nodes({
   :hostname => 'dbsrv',
 })
 ```
+
+The only key that you can't use is `:reboot`, because it is reserved as a native routine of **blackstack-deployer**.
 
 ### 10.3. Calling sub-routines
 
