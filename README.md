@@ -196,7 +196,7 @@ Running database updates consists in:
 
 ```ruby
 # DB ACCESS - KEEP IT SECRET
-BlackStack::Deployer::DB::connect_new_db ('your Sequel connection string here')
+BlackStack::Deployer::DB::connect_new_db('your Sequel connection string here')
 # => DB
 ```
 
@@ -339,6 +339,13 @@ Instead, you can choose the last file processed in order to resume the update fr
 
 ```ruby
 BlackStack::Deployer::DB::deploy('20220527.1.transactions.sql');
+# => true
+```
+
+You can get **blackstack-deployer** remember the last file processed by adding the line below.
+
+```ruby
+BlackStack::Deployer::DB::enable_checkpoints(true);
 # => true
 ```
 

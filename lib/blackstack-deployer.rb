@@ -185,9 +185,13 @@ module BlackStack
     end # module Nodes
 
     module DB
+      @@remember_checkpoint = false
       @@superhuser = nil
       @@new_db = nil
       @@folder = nil
+
+      def self.enable_checkpoints(b)
+      end
 
       def self.set_superuser(h)
       end # def
