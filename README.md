@@ -188,6 +188,8 @@ BlackStack::Deployer::DB::create
 
 ## 8. Running Database Updates
 
+This feature works with any RDBMS supported by [Sequel](https://sequel.jeremyevans.net/).
+
 Running database updates consists in:
 
 1. creating the schema of the database,
@@ -197,14 +199,25 @@ Running database updates consists in:
 
 3. run updates for both types: DDL and DML.
 
-**Step 1:** Define the folder where you host all your `.sql` files.
+**Step 1:** Connect the database
+
+```ruby
+# DB ACCESS - KEEP IT SECRET
+BlackStack::Deployer::DB::connect_new_db ('your Sequel connection string here')
+# => DB
+```
+
+Reference: [Opening Databases](https://sequel.jeremyevans.net/rdoc/files/doc/opening_databases_rdoc.html)
+
+
+**Step 2:** Define the folder where you host all your `.sql` files.
 
 ```ruby
 BlackStack::Deployer::DB::set_folder ('~/code/myrpa/sql');
 # => true
 ```
 
-**Step 2:** Add some files in your `sql` folder.
+**Step 3:** Add some files in your `sql` folder.
 
 This command,
 
@@ -231,7 +244,7 @@ If a filename doesn't match with neither `/\.transactions\.sql$/` nor `/\.senten
 
 As a final note, we recommend you start each filename with something like 'YYYYMMDD.N.' in order the sort them by the files creation time, which use to be the same order you want the files be processed.
 
-**Step 3:** Process the `.sql` files.
+**Step 4:** Process the `.sql` files.
 
 ```ruby
 BlackStack::Deployer::DB::deploy();
@@ -296,9 +309,7 @@ BlackStack::Deployer::DB::deploy('20220527.1.transactions.sql');
 # => true
 ```
 
-
-
-## 10. Dependencies
+## 11. Dependencies
 
 **BlackStack Deployer** uses
 
