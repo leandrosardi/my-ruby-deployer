@@ -1,465 +1,215 @@
-# TODO: move this to the `pampa_deployer` repo.
 module BlackStack
   module Deployer
+    module Nodes
+      @@nodes = []
+      @@routines = []
+      @@profiles = []
 
-    @@deployment_profiles = {} # array of hashes
-    @@hosts = [] # array of hashes
-
-      # getter
-      def self.hosts
-        @@hosts
-      end
-
-      def self.add_host(name, h)
-        BlackStack::Deploying.validate_host_descriptor(h)
-        @@hosts[name] = h
-      end
-      # Setup the configuration of the deployer.
-      def self.set(h)
+      def self.errors()
+        @@errors
+      end # def self.errors
+  
+      # validate the configuration of a node descritor.
+      # this method should be called by the final user.
+      def self.validate_node_descritor(h)
         errors = []
-  
-        # Validate: h[:database_installation_files] exists
-        errors << "The parameter `database_installation_files` is mandatory." if h[:database_installation_files].nil?
-  
-        # Validate: h[:database_initialization_files] exists
-        errors << "The parameter `database_initialization_files` is mandatory." if h[:database_initialization_files].nil?
-  
-        # Validate: h[:database_initialization_files] is an array
-        errors << "The parameter `database_installation_files` must be an array." if h[:database_installation_files].class != Array
-  
-        # Validate: h[:database_initialization_files] is an array
-        errors << "The parameter `database_initialization_files` must be an array." if h[:database_initialization_files].class != Array
-  
-        # Validate: By convention, filenames for installation must match with `/^0./`. Raise an exception if not. Call the method `is_database_installation_file?`.
-        h[:database_installation_files].each { |i|
-          errors << "The file #{i} is not a database installation file." unless is_database_installation_file?(i[:filename])
-        }
-  
-        # Validate: By convention, filenames for initialization must match with `/^1./`. Raise an exception if not. Call the method `is_database_initialization_file?`.
-        h[:database_initialization_files].each { |i|
-          errors << "The file #{i} is not a database installation file." unless is_database_initialization_file?(i[:filename])
-        }  
-    
-        # Raise an exception if there are errors.
-        raise errors.join("\n") if errors.length > 0
-  
-        @@database_installation_files = h[:database_installation_files].class == Array ? h[:database_installation_files] : []
-        @@database_initialization_files = h[:database_initialization_files].class == Array ? h[:database_initialization_files] : []
 
-        # validate and add each one of the deploying profiles
-        h[:deploying_profiles].each { |i|
-          @@deploying_profiles << i
-        }
+        # validate: the parameter h is a hash
+        errors << "The parameter h is not a hash" unless h.is_a?(Hash)
 
-        # validate and add each one of the hosts
-        h[:hosts].each { |i|
-          @@hosts << i
-        }
-      end # def self.set(h)
+        # validate: the paramerer h has a key :net_remote_id
+        errors << "The parameter h does not have a key :net_remote_id" unless h.has_key?(:net_remote_id)
 
-    module Node
-      # TODO: Write documentation
-      # This method should not be called directly by user code.
-      def self.deploy_update_configuration_files_on_win
-        # TODO: Code Me!
+        # if the parameter h has a key :ssh_private_key_file
+        if h.has_key?(:ssh_private_key_file)
+          # validate: the parameter h[:ssh_private_key_file] is a string
+          errors << "The parameter h[:ssh_private_key_file] is not a string" unless h[:ssh_private_key_file].is_a?(String)
+        else
+          # validate: the paramerer h has a key :ssh_username
+          errors << "The parameter h does not have a key :ssh_username. You can also setup the key :ssh_private_key_file" unless h.has_key?(:ssh_username)
+
+          # validate: the parameter h[:ssh_username] is a string
+          errors << "The parameter h[:ssh_username] is not a string" unless h[:ssh_username].is_a?(String)
+
+          # validate: the parameter h has a key :ssh_password
+          errors << "The parameter h does not have a key :ssh_password. You can also setup the key :ssh_private_key_file" unless h.has_key?(:ssh_password)
+
+          # validate: the parameter h[:ssh_password] is a string
+          errors << "The parameter h[:ssh_password] is not a string" unless h[:ssh_password].is_a?(String)
+        end
+
+        # validate: the parameter h has a key :deployment_routine
+        errors << "The parameter h does not have a key :deployment_routine" unless h.has_key?(:deployment_routine)
+
+        # validate: the parameter h[:deployment_routine] is a string
+        errors << "The parameter h[:deployment_routine] is not a string" unless h[:deployment_routine].is_a?(String)
+
+        # validate: exists a routine with the name h[:deployment_routine]
+        errors << "The parameter h[:deployment_routine] does not exist in the routines list" unless @@routines.select { |r| r.name == h[:deployment_routine] }.size > 0
+
+        # raise an exception if any error happneed
+        raise "The node descriptor is not valid: #{errors.uniq.join(', ')}" if errors.length > 0
       end
 
-      # TODO: Write documentation
-      # This method should not be called directly by user code.
-      def self.deploy_restart_sinatra_on_win
-        # TODO: Code Me!
-      end
+      # add a node to the list of nodes.
+      def self.add_node(h)
+        BlackStack::Deployer::Nodes.validate_node_descritor(h)
+        @@nodes << h
+      end # def
 
-      # TODO: Write documentation
-      # This method should not be called directly by user code.
-      def self.deploy_restart_pampa_on_win
-        # TODO: Code Me!
-      end
+      # add an array of nodes to the list of nodes.
+      def self.add_nodes(a)
+        # validate: the parameter a is an array
+        raise "The parameter a is not an array" unless a.is_a?(Array)
+        a.each { |h| BlackStack::Deployer::Nodes.add_node(h) }
+      end # def
 
-      # TODO: Write documentation
-      # This method should not be called directly by user code.
-      def self.deploy_update_configuration_files_on_linux
-        # TODO: Code Me!
-      end
+      # remove all exisiting nodes in he list of nodes.
+      # then, add the nodes in the parameter a to the list of nodes.
+      def self.set_nodes(a)
+        @@nodes.remove_all
+        BlackStack::Deployer::Nodes.add_nodes(a)
+      end # def
 
-      # TODO: Write documentation
-      # This method should not be called directly by user code.
-      def self.deploy_restart_sinatra_on_linux
-        # TODO: Code Me!
-      end
+      # validate the configuration of a routine descritor.
+      # this method should be called by the final user.
+      def self.validate_routine_descritor(h)
+        errors = []
 
-      # TODO: Write documentation
-      # This method should not be called directly by user code.
-      def self.deploy_restart_pampa_on_linux
-        # TODO: Code Me!
-      end
+        # validate: the parameter h is a hash
+        errors << "The parameter h is not a hash" unless h.is_a?(Hash)
 
-      # TODO: Write documentation      
-      # This method should not be called directly by user code.
-      def self.deploy_pull_source_code
-        # TODO: Code Me!
-      end
+        # validate: the paramerer h has a key :name
+        errors << "The parameter h does not have a key :name" unless h.has_key?(:name)
 
-      # TODO: Write documentation
-      # This method should not be called directly by user code.
-      def self.deploy_update_public_gems
-        # TODO: Code Me!
-      end
+        # validate: the paramerer h has a key :command
+        errors << "The parameter h does not have a key :command" unless h.has_key?(:command)
 
-      # TODO: Write documentation
-      # This method should not be called directly by user code.
-      def self.deploy_update_private_gems
-        # TODO: Code Me!
-      end
+        # validate: the parameter h[:name] is a string or a symbol
+        errors << "The parameter h[:name] is not a string" unless h[:name].is_a?(String)
 
-      # Call either the Windows or Linux version of this method, depending on the `:os` defined for the `deploying_descriptor`.
-      # TODO: Write documentation
-      # This method should not be called directly by user code.
-      def self.deploy_update_configuration_files
-        # TODO: Code Me!
-      end
+        # validate: the parameter h[:name] is not 'reboot' because it is a reserved name
+        errors << "The parameter h[:name] is a reserved name (#{h[:name].to_s})" if h[:name] == 'reboot'
 
-      # Call either the Windows or Linux version of this method, depending on the `:os` defined for the `deploying_descriptor`.
-      # TODO: Write documentation
-      # This method should not be called directly by user code.
-      def self.deploy_restart_sinatra
-        # TODO: Code Me!
-      end
+        # validate: the parametrer h[:commands] is an array
+        errors << "The parameter h[:commands] is not an array" unless h[:commands].is_a?(Array)
 
-      # Call either the Windows or Linux version of this method, depending on the `:os` defined for the `deploying_descriptor`.
-      # TODO: Write documentation
-      # This method should not be called directly by user code.
-      def self.deploy_restart_pampa
-        # TODO: Code Me!
-      end
+        # validate: the parameter h[:commands] has at least one element
+        errors << "The parameter h[:commands] does not have at least one element" unless h[:commands].size > 0
 
-      # Call all the deploying stages.
-      def self.deploy(branch_name=nil)
-        # iterate the list of hosts
-        @@hosts.each { |host_descriptor|
-          # find the deploying profile of this host
-          deploying_profile_descriptor = @@deploying_profiles.find { |deploying_profile|
-            deploying_profile[:name] == host_descriptor[:deploying_profile]
-          }
+        # validate: each element of the array h[:commands] is a hash
+        h[:commands].each do |c|
+          errors << "Each element of the array h[:commands] is not a hash" unless c.is_a?(Hash)
 
-          self.deploy_pull_source_code(branch_name, host_descriptor, deploying_profile_descriptor)
+          # validate: the hash c has a key :command
+          errors << "The hash in the array :commands does not have a key :command" unless c.has_key?(:command)
 
-          self.deploy_update_public_gems(host_descriptor, deploying_profile_descriptor)
+          # validate: the value of c[:command] is a string or symbol
+          errors << "The value of c[:command] is not a string and is not a symbol" unless c[:command].is_a?(String) || c[:command].is_a?(Symbol)
 
-          self.deploy_update_private_gems(host_descriptor, deploying_profile_descriptor)
+          # if the parameter h[:name] is a symbol
+          if c[:command].is_a?(Symbol)
+            # validate: existis a routine with a the value c[:command].to_s on its :name key
+            errors << "The routine with the name #{c[:command].to_s} does not exist" unless BlackStack::Deployer::Routines.select { |r| r[:name] == c[:command].to_s }.size > 0
+          end
 
-          self.deploy_update_configuration_files(host_descriptor, deploying_profile_descriptor)
+          # if c[:matches] exists
+          if c.has_key?(:matches)
+            # validate: the value of c[:matches] must by a regex or an array
+            errors << "The value of the key :matches is not a regex or an array" unless c[:matches].is_a?(Regexp) || c[:matches].is_a?(Array)
+            # if c[:matches] is a array
+            if c[:matches].is_a?(Array)
+              # validate: each element in the the array c[:matches] is a regex
+              c[:matches].each do |m|
+                errors << "Each element in the array c[:matches] is not a regex" unless m.is_a?(Regexp)
+              end # each
+            end # if c[:matches].is_a?(Array)
+          end # if :matches exists
 
-          self.deploy_restart_sinatra(host_descriptor, deploying_profile_descriptor)
+          # if c[:nomatches] exists
+          if c.has_key?(:nomatches)
+            # validate: the value of c[:nomatches] must by a regex or an array
+            errors << "The value of the key :nomatches is not an array" unless c[:nomatches].is_a?(Array)
+            # if c[:nomatches] is a array
+            if c[:nomatches].is_a?(Array)
+              # validate: each element in the the array c[:nomatches] is a hash
+              c[:nomatches].each do |m|
+                errors << "Each element in the array c[:nomatches] is not a regex" unless m.is_a?(Hash)
+                # if m is a hash
+                if m.is_a?(Hash)
+                  # validate: the hash m has a key :nomatch
+                  errors << "The hash in the array c[:nomatches] does not have a key :nomatch" unless m.has_key?(:nomatch)
+                  # validate: the value of m[:nomatch] is a string
+                  errors << "The value of the key :nomatch is not a string" unless m[:nomatch].is_a?(String)
+                  # validate: the hash m has a key :error_description
+                  errors << "The hash in the array c[:nomatches] does not have a key :error_description" unless m.has_key?(:error_description)
+                  # validate: the value of m[:error_description] is a string
+                  errors << "The value of the key :error_description is not a string" unless m[:error_description].is_a?(String)
+                end # if m.is_a?(Hash)
+              end # each
+            end # if c[:matches].is_a?(Array)
+          end # if :matches exists
+        end # h[:commands].each do |c|
 
-          self.deploy_restart_pampa(host_descriptor, deploying_profile_descriptor)
-        }
-      end # def deploy
-    end # module Node
+        # raise exception if any error has been found
+        raise "The routine descriptor is not valid: #{errors.uniq.join(', ')}" if errors.length > 0
+      end # end
+
+      # add a routine to the list of routines.
+      def self.add_routine(h)
+        BlackStack::Deployer::Routines.validate_routine_descritor(h)
+        @@routines << h
+      end # def
+
+      # add an array of routines to the list of routines.
+      def self.add_routines(a)
+        # validate: the parameter a is an array
+        raise "The parameter a is not an array" unless a.is_a?(Array)
+        a.each { |h| BlackStack::Deployer::Routines.add_routine(h) }
+      end # def
+
+      # remove all exisiting routines in he list of routines.
+      # then, add the routines in the parameter a to the list of routines.
+      def self.set_routines(a)
+        @@routines.remove_all
+        BlackStack::Deployer::Routines.add_routines(a)
+      end # def
+      
+      # running a routine on a node
+      def self.run(node_name, routine_name)
+      end # def
+      
+      # deploying all routines on all nodes
+      def self.deploy()
+      end # def
+    end # module Nodes
 
     module DB
-      @@database_installation_files = [] # array of hashes
-      @@database_initialization_files = [] # array of hashes
+      @@superhuser = nil
+      @@new_db = nil
+      @@folder = nil
 
-      # getter
-      def self.database_installation_files
-        @@database_installation_files
-      end
-
-      # getter
-      def self.database_initialization_files
-        @@database_initialization_files
-      end
-
-      # getter
-      def self.deployment_profiles
-        @@deployment_profiles
-      end
-
-
-
-      # Return `true` if the name of the file matches with `/\.tsql\./`, and it doesn't match with `/\.sentences\./`, and the matches with `/\.tsql\./` are no more than one.
-      # Otherwise({, return `false`.
-      # This method should not be called directly by user code.
-      def self.is_tsql_file?(filename)
-        filename =~ /\.tsql\./ && filename !~ /\.sentences\./ && filename.scan(/\.tsql\./).size == 1
-      end
-  
-      # Return `true` if the name of the file matches with `/\.sentences\./`, and it doesn't match with `/\.tsql\./`, and the matches with `/\.sentences\./` are no more than one.
-      # Otherwise({, return `false`.
-      # This method should not be called directly by user code.
-      def self.is_sentences_file?(filename)
-        filename =~ /\.sentences\./ && filename !~ /\.tsql\./ && filename.scan(/\.sentences\./).size == 1
-      end
-  
-      # Extract the name of the file from the full path stored in the `filename` parameter.
-      # Return `true` if the name of the file matches with `/^0\./`.
-      # Otherwise({, return `false`.
-      # This method should not be called directly by user code.
-      def self.is_database_installation_file?(filename)
-        # extract the name fo the file form the filename variable
-        file_name = File.basename(filename)
-        return true if file_name =~ /^0\./ 
-        return false
-      end
-  
-      # Extract the name of the file from the full path stored in the `filename` parameter.
-      # Return `true` if the name of the file matches with `/^1\./`.
-      # Otherwise({, return `false`.
-      # This method should not be called directly by user code.
-      def self.is_database_initialization_file?(filename)
-        # extract the name fo the file form the filename variable
-        file_name = File.basename(filename)
-        return true if file_name =~ /^1\./ 
-        return false
-      end
-  
-      # validate the type of each one of the parameters of `deploying_profile` description in `h`.
-      # If one or more errors are found, raise an exception with all the errors listed.
-      # Example of a `deploying_profile` descriptor:
-      # ```ruby
-      # {
-      #   :name => 'sinatra-webserver',
-      #   :source_code_path => '~/code/tempora'
-      #   :os => BlackStack::Deployer::LINUX,
-      #   :pull_source_code => true,
-      #   :update_public_gems => true,
-      #   :update_private_gems => true,
-      #   :list_of_private_gems => ['stealth_browser_automation', 'bots', 'nextbot'],
-      #   :update_configuration_files => true,
-      #   :list_of_configuration_files => [
-      #     { :local_path => "c:\\mycode\\tempora\\config_for_production.yaml", :host_filename => '~/code/tempora/config.yaml' }, 
-      #     { :local_path => "c:\\mycode\\tempora\\db_password_for_production.yaml", :host_filename => '~/code/tempora/db_password.yaml' }, 
-      #   ]
-      #   :restart_sinatra => true,
-      #   :sinatra_ports => [80, 81, 82],
-      #   :restart_pampa => true,
-      #   :kill_pampa_one_line_commands => [
-      #     'kill xterm',
-      #     'kill ruby',
-      #     'kill chrome',
-      #     'kill firefox',
-      #     'kill terminal',
-      #   ]
-      #   :start_pampa_one_line_commands => [
-      #     'xterm -e bash -c "cd ~/code/tempora;./shm.rb;bash"',
-      #     'xterm -e bash -c "cd ~/code/tempora;./mlalistener.rb port=45010;bash"',
-      #   ] 
-      # }
-      # ```
-      def self.validate_deploying_profile_descriptor(h)
-        errors = []
-
-        # TODO: Code Me!
-
-        # if any error found, then raise an exception with the list of errors
-        raise "Invalid deploying profile descriptor: #{errors.join(', ')}" if errors.size > 0
-      end
-
-      # validate the type of each one of the parameters of `host` description in `h`.
-      # If one or more errors are found, raise an exception with all the errors listed.
-      # Example of a `host` descriptor:
-      # ```ruby
-      # { 
-      # :internet_address => 'ws1.mydomain.com', 
-      # :remote_access_user => 'computer username', 
-      # :remote_access_password => 'computer password', 
-      # :role=>'sinatra-webserver' },
-      # }
-      # ```
-      def self.validate_host_descriptor(h)
-        errors = []
-
-        # TODO: Code Me!
-
-        # if any error found, then raise an exception with the list of errors
-        raise "Invalid host descriptor: #{errors.join(', ')}" if errors.size > 0
-      end
-
-      def self.add_deploying_profile(name, h)
-        BlackStack::Deploying.validate_deploying_profile_descriptor(h)
-        @@deployment_profiles[name] = h
-      end
-  
-      # Method to process an `.sql` file with transact-sql code, each one separated by a `GO` statement.
-      # Reference: https://stackoverflow.com/questions/64066344/import-large-sql-files-with-ruby-sequel-gem
-      # This method is called by `BlackStack::Deployer::db_execute_file` if the filename matches with `/\.tsql\./`. 
-      # This method should not be called directly by user code.
-      def self.db_execute_tsql_file(sql, tlogger=nil, db_name=nil, path=nil, size=nil)
-        tlogger = BlackStack::DummyLogger.new(nil) if tlogger.nil?
-  
-        tlogger.logs 'Executing script (may take time)... '
-        sql.split(/^GO$/i).each { |statement|
-            #print '.'
-            #statement.gsub!(/\n$/i, '')
-            begin
-                DB.execute(statement)
-            rescue => e
-              tlogger.logf 'error' 
-              raise "Error executing statement: #{statement}\n#{e.message}"
-            end
-        }
-        tlogger.done
-      end # def db_execute_tsql
-      
-      # Method to process an `.sql` file with one sql sentence by line.
-      # Reference: https://stackoverflow.com/questions/64066344/import-large-sql-files-with-ruby-sequel-gem
-      # This method is called by `BlackStack::Deployer::db_execute_file` if the filename matches with `/\.sentences\./`. 
-      # This method should not be called directly by user code.
-      def self.db_execute_sql_sentences_file(sql, tlogger=nil, db_name=nil, path=nil, size=nil)      
-        tlogger = BlackStack::DummyLogger.new(nil) if tlogger.nil?
-              
-        tlogger.logs 'Executing script (may take time)... '
-        sql.split(/\n/i).each { |statement|
-            #print '.'
-            #statement.gsub!(/\n$/i, '')
-            begin
-                DB.execute(statement.to_s.strip) #if statement.to_s.strip.size > 0
-            rescue => e
-              tlogger.logf 'error' 
-              raise "Error executing statement: #{statement}\n#{e.message}"
-            end
-        }
-        tlogger.done
-      end # def db_execute_sql_sentences_file
-      
-      # Load the content of a file into a variable `sql`.
-      # Use UTF-8 encoding. Reference: https://www.honeybadger.io/blog/the-rubyist-guide-to-unicode-utf8/
-      # Execute the script in the file, by calling either `db_execute_tsql_file` or `db_execute_sql_sentences_file`.
-      def self.db_execute_file(filename, tlogger=nil, db_name=nil, path=nil, size=nil)
-        errors = []
-        tlogger = BlackStack::DummyLogger.new(nil) if tlogger.nil?
-        
-        tlogger.logs "Loading #{filename}... "
-        encoding = 'UTF-8' # 'ISO-8859-1'
-        sql = File.read(filename, :encoding => encoding).encode(encoding, invalid: :replace, undef: :replace, replace: '') #'UTF-8')
-        tlogger.done
-      
-        # Validate: the `filename` must be either a `.tsql` file or a `.sentences` file.
-        errors << "The file #{filename} is not a .tsql or .sentences file." unless is_tsql_file?(filename) || is_sentences_file?(filename)
-  
-        # Validate: if the `sql` code contains %database_name% wildcard, the `db_name` parameter must be defined.
-        errors << "The parameter `db_name` is mandatory, because the `%database_name%` wildcard is present in the `#{filename}`." if sql.include?('%database_name%') && db_name.nil?
-  
-        # Validate: if the `sql` code contains %path% wildcard, the `path` parameter must be defined.
-        errors << "The parameter `path` is mandatory, because the `%path%` wildcard is present in the `#{filename}`." if sql.include?('%path%') && path.nil?
-  
-        # Validate: if the `sql` code contains %size% wildcard, the `size` parameter must be defined.
-        errors << "The parameter `size` is mandatory, because the `%size%` wildcard is present in the `#{filename}`." if sql.include?('%size%') && size.nil?
-  
-        # Raise an exception if there are errors.
-        raise errors.join("\n") if errors.length > 0
-  
-        # Resolve the "string contains null byte" exception.
-        # Reference: https://stackoverflow.com/questions/29320369/coping-with-string-contains-null-byte-sent-from-users
-        sql.gsub!("\u0000", '')
-
-        tlogger.logs 'Replacing wildcards... '
-        sql.gsub!(/%database_name%/, db_name) unless db_name.nil?
-        sql.gsub!(/%path%/, path) unless path.nil?
-        sql.gsub!(/%size%/, size) unless size.nil?
-        tlogger.done
-  
-        if is_tsql_file?(filename)
-          db_execute_tsql_file(sql, tlogger, db_name, path, size) 
-        elsif is_sentences_file?(filename)
-          db_execute_sql_sentences_file(sql, tlogger, db_name, path, size) 
-        end
-      end # def db_execute_sql_sentences_file
-
-      # Process all the file-descriptors in the array `filedescriptors`.
-      # Call to `db_execute_file` for each file.
-      # If a file processing fails and the `:critical` parameter is `false`, the exception is caught and the file is skipped.
-      # If a file processing fails and the `:critical` parameter is `true`, the exception is raised.
-      # This method is called by `BlackStack::Deployer::db_install` and `BlackStack::Deployer::db_initialize`.
-      # This method should not be called directly by user code.
-      def self.db_execute_files(filedescriptors, tlogger=nil, db_name=nil, path=nil, size=nil)
-        tlogger = BlackStack::DummyLogger.new(nil) if tlogger.nil?
-
-        filedescriptors.each { |h|
-          begin
-            tlogger.logs "Running file #{h[:filename]}... "
-            BlackStack::Deployer::db_execute_file(h[:filename], tlogger, db_name, path, size)
-            tlogger.done
-          rescue => e
-            if h[:critical]
-              tlogger.logf "fatal error: #{e.to_console}"
-              raise e
-            else
-              tlogger.logf "error: #{e.to_console}"
-            end
-          end
-        }
-      end
-
-      # Process all the file-descriptors in the array `database_installation_files`.
-      # Call to `db_execute_file` for each file.
-      # If a file processing fails and the `:critical` parameter is `false`, the exception is caught and the file is skipped.
-      # If a file processing fails and the `:critical` parameter is `true`, the exception is raised.
-      def self.db_install(tlogger=nil, db_name=nil, path=nil, size=nil)
-        errors = []
-
-        # VALIDATE: the value `:filename` of every element passes the `is_database_installation_file?` method.
-        @@database_installation_files.each { |h|
-                errors << "#{h[:filename]} is not a valid name for a database installation file." unless self.is_database_installation_file?(h[:filename])
-        }
-
-        # raise if any error is found.
-        raise errors.join("\n") if errors.length > 0
-
-        # call the method `db_execute_file` for each file descriptor in the array `database_installation_files`
-        BlackStack::Deployer::db_execute_files(@@database_installation_files, tlogger, db_name, path, size)
-      end
-
-      # Process all the file-descriptors in the array `database_initialization_files`.
-      # Call to `db_execute_file` for each file.
-      # If a file processing fails and the `:critical` parameter is `false`, the exception is caught and the file is skipped.
-      # If a file processing fails and the `:critical` parameter is `true`, the exception is raised.
-      def self.db_initialize(tlogger=nil, db_name=nil, path=nil, size=nil)
-        errors = []
-
-        # VALIDATE: the value `:filename` of every element passes the `is_database_initialization_file?` method.
-        @@database_initialization_files.each { |h|
-                errors << "#{h[:filename]} is not a valid name for a database initialization file." unless self.is_database_initialization_file?(h[:filename])
-        }
-
-        # raise if any error is found.
-        raise errors.join("\n") if errors.length > 0
-
-        # call the method `db_execute_file` for each file descriptor in the array `database_initialization_files`
-        BlackStack::Deployer::db_execute_files(@@database_initialization_files, tlogger, db_name, path, size)
-      end
-
-      # Run a series of `.sql` files with updates to the database.
-      # All files are considered as critical. If any file fails, the exception is raised.
-      # 
-      # **Parameters:**
-      # 1. **path:** The location where find the `.sql` files to run. They will be executed one by one, in alphabetical order.
-      # 2. **last_filename:** The name of the last file processed, so your process can resume from where it finished in the last job.
-      #
-      def self.db_update(tlogger=nil, db_name=nil, sql_path=nil, last_filename='1', path=nil, size=nil)
-        # VALIDATE: `last_filename` must be higher than `'2'``.
-        raise "The parameter `last_filename` must be higher than `'2'`." if last_filename.to_i < 2
-
-        file_descriptors = []
-
-        # get list of `.sql` files in the directory `sql_path`, with a name higher than `last_filename`, sorted by name.
-        files = Dir.glob("#{sql_path}/*.sql").select { |filename| 
-          filename > last_filename 
-        }.sort { |filename| 
-          filename 
-        }.each { |filename|
-          file_descriptors << {
-            :filename => filename,
-            :critical => true,
-            :description => '',
-          }
-        }
-
-        # call the method `db_execute_file` for each file descriptor in the array `database_initialization_files`
-        BlackStack::Deployer::db_execute_files(file_descriptors, tlogger, db_name, path, size)
-      end # def db_update
+      def self.set_superuser(h)
+      end # def
+    
+      def self.set_new_db(h)
+      end # def
+    
+      def self.create
+      end # def
+    
+      def self.connect_new_db(s)
+      end # def
+    
+      def self.set_folder(s)
+      end # def
+    
+      def self.deploy(last_filename_processed=nil)
+      end # def
     end # module DB
+
+    # 
+    BlackStack::Deployer.deploy()    
+    end # def
   end # module Deployer
 end # module BlackStack
-  

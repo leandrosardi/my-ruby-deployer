@@ -27,7 +27,7 @@ gem intall blackstack-deployer
 require 'blackstack-deployer'
 
 # setup nodes
-BlackStack::Deployer::Node.set_nodes({
+BlackStack::Deployer::Node.set_nodes([{
   :net_remote_ip => 's1.mydomain.com', 
   :ssh_username => 'username', 
   :ssh_password => 'password', 
@@ -35,14 +35,23 @@ BlackStack::Deployer::Node.set_nodes({
   :net_remote_ip => 's2.mydomain.com', 
   :ssh_username => 'username', 
   :ssh_password => 'password', 
-})
+}])
 ```
+
+Instead of defining the `ssh_username` and `ssh_password`, you can setup either `.pem` or `.ppk` private key files.
+
+```ruby
+BlackStack::Deployer::Node.add_node({
+  :net_remote_ip => 'db.mydomain.com', 
+  :ssh_private_key_file => '~/certs/db.pem', 
+})
+``` 
 
 **Step 3:** Setup deployment routines.
 
 ```ruby
 # setup deploying rutines
-BlackStack::Deployer::Node.set_routines({
+BlackStack::Deployer::Node.set_routines([{
   :name => 'pull-source-code',
   :commands => [
     { :command => 'cd ~/code/myrpa' },
@@ -55,7 +64,7 @@ BlackStack::Deployer::Node.set_routines({
     { :command => 'pkill xterm' },
     { :command => 'xterm -e bash -c "cd ~/code/myrpa;./rpa.rb;bash"' },
   ],
-});
+}]);
 ```
 
 **Step 4:** Run a deployment routine
@@ -73,7 +82,7 @@ You can also look for a list of well known error messages, listed in the `:nomat
 
 ```ruby
 # setup deploying rutines for different kind of servers.
-BlackStack::Deployer::Node.add_routines([{
+BlackStack::Deployer::Node.add_routine({
     # download the latest version of source code
     :name => 'restart-webserver',
     # run additional bash commands, and validate outputs.
@@ -88,51 +97,33 @@ BlackStack::Deployer::Node.add_routines([{
         :command => 'ruby ./webserver.rb --restart', 
         :matches => /Restarted Successfully/, 
         :nomatches => [
-          { :nomatch => /Permission Denied/, :error => 'no grants' },
-          { :nomatch => /Command not found/, :error => 'kill command is not installed' },
+          { :nomatch => /Permission Denied/, :error_description => 'no grants' },
+          { :nomatch => /Command not found/, :error_description => 'kill command is not installed' },
         ]
       },
     ],
-}]);
+});
 ```
 
 ## 3. Defining Node Profiles
 
-**Step 1:** Define deployment profiles.
-
-```ruby
-BlackStack::Deployer::Node.set_profiles([{
-  :name => 'rpa-node',
-  :routines => [
-    { :routine => 'pull-source-code' },
-    { :routine => 'restart-rpa' },
-  ],
-}, {
-  :name => 'webserver-node',
-  :routines => [
-    { :routine => 'pull-source-code' },
-    { :routine => 'restart-webserver' },
-  ],
-}]);
-```
-
-**Step 2:** Define nodes again.
+**Step 1:** Define a the routine that each node should run for deploying.
 
 ```ruby
 BlackStack::Deployer::Node.set_nodes([{
   :net_remote_ip => 's1.mydomain.com', 
   :ssh_username => 'username', 
   :ssh_password => 'password', 
-  :deployment_profile => 'rpa-node',
+  :deployment_routine => 'rpa-node',
 }, { 
   :net_remote_ip => 's2.mydomain.com', 
   :ssh_username => 'username', 
   :ssh_password => 'password', 
-  :deployment_profile => 'rpa-node'
+  :deployment_routine => 'rpa-node'
 }])
 ```
 
-**Step 3:** Run deployment for all nodes.
+**Step 2:** Run deployment for all nodes.
 
 ```ruby
 BlackStack::Deployer::Node.deploy()
@@ -283,15 +274,13 @@ You can request node reboot as part of a routine.
 
 ```ruby
 # setup deploying rutines for different kind of servers.
-BlackStack::Deployer::Node.add_routines({
-  :deploying_rutines => [{
-    :name => 'change-server-name',
-    :commands => [
-      { :command => "echo 'dbsrv1' > /etc/hostname" },
-      { :command => :reboot },
-    ],
-  }],
-});
+BlackStack::Deployer::Node.add_routines([{
+  :name => 'change-server-name',
+  :commands => [
+    { :command => "echo 'dbsrv1' > /etc/hostname" },
+    { :command => :reboot },
+  ],
+}]);
 ```
 
 ### 10.2. Pass routine parameters
@@ -300,27 +289,25 @@ Your can define parameters parameters between `%` chars, as is shown in the code
 
 ```ruby
 # setup deploying rutines for different kind of servers.
-BlackStack::Deployer::Node.add_routines({
-  :deploying_rutines => [{
-    :name => 'change-server-name',
-    :commands => [
-      { :command => "echo '%hostname%' > /etc/hostname" },
-      { :command => :reboot },
-    ],
-  }],
-});
+BlackStack::Deployer::Node.add_routines([{
+  :name => 'change-server-name',
+  :commands => [
+    { :command => "echo '%hostname%' > /etc/hostname" },
+    { :command => :reboot },
+  ],
+}]);
 ```
 
 The value to assign will be taken from the hash descriptor of the node.
 
 ```ruby
-BlackStack::Deployer::Node.set_nodes({
+BlackStack::Deployer::Node.add_nodes([{
   :net_remote_ip => 'db.mydomain.com', 
   :ssh_username => 'username', 
   :ssh_password => 'password', 
   :deployment_profile => 'db-node',
   :hostname => 'dbsrv',
-})
+}])
 ```
 
 The only key that you can't use is `:reboot`, because it is reserved as a native routine of **blackstack-deployer**.
@@ -331,15 +318,13 @@ You can request the execution of a routine as part of a bigger routine.
 
 ```ruby
 # setup deploying rutines for different kind of servers.
-BlackStack::Deployer::Node.add_routines({
-  :deploying_rutines => [{
-    :name => 'installation',
-    :commands => [
-      { :command => :change-server-name },
-      { :command => :reboot },
-    ],
-  }],
-});
+BlackStack::Deployer::Node.add_routines([{
+  :name => 'installation',
+  :commands => [
+    { :command => :change-server-name },
+    { :command => :reboot },
+  ],
+}]);
 ```
 
 ### 10.4. Resuming database deploying from last checkpoint
