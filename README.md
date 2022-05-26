@@ -1,3 +1,5 @@
+**THIS GEM IS UNDER CONSTRUCTION**
+
 # BlackStack Deployer
 
 **BlackStack Deployer** automates what you already know how to do manually, but in a repeatable, scalable fashion. There is no magic here!
