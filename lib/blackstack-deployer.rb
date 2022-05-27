@@ -1,30 +1,38 @@
+require 'net/ssh'
+
 module BlackStack
   
   # TODO: move this to the blackstack-code library
   module Infrastructure
-    class NodeStub
-      def self.validate_descriptor(h)
+
+    module BaseNode
+      attr_accessor :ssh
+
+      def self.descriptor_errors(h)
         errors = []
 
         # validate: the parameter h is a hash
         errors << "The parameter h is not a hash" unless h.is_a?(Hash)
 
-        # validate: the paramerer h has a key :net_remote_id
-        errors << "The parameter h does not have a key :net_remote_id" unless h.has_key?(:net_remote_id)
+        # validate: the paramerer h has a key :net_remote_ip
+        errors << "The parameter h does not have a key :net_remote_ip" unless h.has_key?(:net_remote_ip)
+
+        # validate: the paramerer h has a key :ssh_username
+        errors << "The parameter h does not have a key :ssh_username" unless h.has_key?(:ssh_username)
+
+        # validate: the parameter h[:ssh_username] is a string
+        errors << "The parameter h[:ssh_username] is not a string" unless h[:ssh_username].is_a?(String)
 
         # if the parameter h has a key :ssh_private_key_file
         if h.has_key?(:ssh_private_key_file)
           # validate: the parameter h[:ssh_private_key_file] is a string
           errors << "The parameter h[:ssh_private_key_file] is not a string" unless h[:ssh_private_key_file].is_a?(String)
+
+          # validate: the parameter h[:ssh_private_key_file] is a string
+          errors << "The parameter h[:ssh_private_key_file] is not a string" unless h[:ssh_private_key_file].is_a?(String)
         else
-          # validate: the paramerer h has a key :ssh_username
-          errors << "The parameter h does not have a key :ssh_username. You can also setup the key :ssh_private_key_file" unless h.has_key?(:ssh_username)
-
-          # validate: the parameter h[:ssh_username] is a string
-          errors << "The parameter h[:ssh_username] is not a string" unless h[:ssh_username].is_a?(String)
-
           # validate: the parameter h has a key :ssh_password
-          errors << "The parameter h does not have a key :ssh_password. You can also setup the key :ssh_private_key_file" unless h.has_key?(:ssh_password)
+          errors << "The parameter h does not have a key :ssh_password nor :ssh_private_key_file" unless h.has_key?(:ssh_password)
 
           # validate: the parameter h[:ssh_password] is a string
           errors << "The parameter h[:ssh_password] is not a string" unless h[:ssh_password].is_a?(String)
@@ -32,8 +40,59 @@ module BlackStack
 
         # return
         errors
-      end # def self.validate_descriptor(h)
-    end # class Node
+      end # def self.descriptor_errors(h)
+
+      def initialize(h)
+        errors = BlackStack::Infrastructure::BaseNode.descriptor_errors(h)
+        # raise an exception if any error happneed
+        raise "The node descriptor is not valid: #{errors.uniq.join(".\n")}" if errors.length > 0
+        # map attributes
+        self.net_remote_ip = h[:net_remote_ip]
+        self.ssh_username = h[:ssh_username]
+        self.ssh_password = h[:ssh_password] 
+        self.ssh_port = h[:ssh_port]
+        self.ssh_private_key_file = h[:ssh_private_key_file]
+      end # def self.create(h)
+
+      def to_hash
+        {
+          :net_remote_ip => self.net_remote_ip,
+          :ssh_username => self.ssh_username,
+          :ssh_password => self.ssh_password, 
+          :ssh_port => self.ssh_port,
+          :ssh_private_key_file => self.ssh_private_key_file,
+        }
+      end # def to_hash
+
+
+      # return true if the node is all set to connect using ssh user and password.
+      def ssh_user_password?
+        !self.net_remote_ip.nil? && !self.ssh_username.nil? && !self.ssh_password.nil?
+      end
+
+      # return true if the node is all set to connect using a private key file.
+      def ssh_private_key_file?
+        !self.net_remote_ip.nil? && !self.ssh_username.nil? && !self.ssh_private_key_file.nil?
+      end
+
+      def connect()
+        # connect
+        if self.ssh_user_password?
+          self.ssh = Net::SSH.start(self.net_remote_ip, self.ssh_username, :password => self.ssh_password, :port => self.ssh_port)
+        elsif self.ssh_private_key_file?
+          self.ssh = Net::SSH.start(self.net_remote_ip, self.ssh_username, :keys => self.ssh_private_key_file, :port => self.ssh_port)
+        else
+          raise "No ssh credentials available"
+        end
+        self.ssh
+      end # def connect()
+
+    end # module BaseNode
+
+    class RemoteNode
+      attr_accessor :net_remote_ip, :ssh_username, :ssh_password, :ssh_port, :ssh_private_key_file
+      include BaseNode
+    end # class RemoteNode
   end # module Infrastructure
 
 
@@ -50,7 +109,7 @@ module BlackStack
       # validate the configuration of a node descritor.
       # this method should be called by the final user.
       def self.validate_node_descritor(h)
-        errors = BlackStack::Infrastructure::Node.validate_descriptor(h)
+        errors = BlackStack::Infrastructure::Node.descriptor_errors(h)
         
         # validate: the parameter h has a key :deployment_routine
         errors << "The parameter h does not have a key :deployment_routine" unless h.has_key?(:deployment_routine)
@@ -62,7 +121,7 @@ module BlackStack
         errors << "The parameter h[:deployment_routine] does not exist in the routines list" unless @@routines.select { |r| r.name == h[:deployment_routine] }.size > 0
 
         # raise an exception if any error happneed
-        raise "The node descriptor is not valid: #{errors.uniq.join(', ')}" if errors.length > 0
+        raise "The node descriptor is not valid: #{errors.uniq.join(".\n")}" if errors.length > 0
       end
 
       # add a node to the list of nodes.
@@ -166,7 +225,7 @@ module BlackStack
         end # h[:commands].each do |c|
 
         # raise exception if any error has been found
-        raise "The routine descriptor is not valid: #{errors.uniq.join(', ')}" if errors.length > 0
+        raise "The routine descriptor is not valid: #{errors.uniq.join(".\n")}" if errors.length > 0
       end # end
 
       # add a routine to the list of routines.
@@ -227,7 +286,8 @@ module BlackStack
     end # module DB
 
     # 
-    BlackStack::Deployer.deploy()    
+    def self.deploy()    
     end # def
   end # module Deployer
+
 end # module BlackStack
