@@ -1,17 +1,9 @@
 module BlackStack
-  module Deployer
-    module Nodes
-      @@nodes = []
-      @@routines = []
-      @@profiles = []
-
-      def self.errors()
-        @@errors
-      end # def self.errors
   
-      # validate the configuration of a node descritor.
-      # this method should be called by the final user.
-      def self.validate_node_descritor(h)
+  # TODO: move this to the blackstack-code library
+  module Infrastructure
+    class NodeStub
+      def self.validate_descriptor(h)
         errors = []
 
         # validate: the parameter h is a hash
@@ -38,6 +30,28 @@ module BlackStack
           errors << "The parameter h[:ssh_password] is not a string" unless h[:ssh_password].is_a?(String)
         end
 
+        # return
+        errors
+      end # def self.validate_descriptor(h)
+    end # class Node
+  end # module Infrastructure
+
+
+  module Deployer
+    module Nodes
+      @@nodes = []
+      @@routines = []
+      @@profiles = []
+
+      def self.errors()
+        @@errors
+      end # def self.errors
+  
+      # validate the configuration of a node descritor.
+      # this method should be called by the final user.
+      def self.validate_node_descritor(h)
+        errors = BlackStack::Infrastructure::Node.validate_descriptor(h)
+        
         # validate: the parameter h has a key :deployment_routine
         errors << "The parameter h does not have a key :deployment_routine" unless h.has_key?(:deployment_routine)
 
