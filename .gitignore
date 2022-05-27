@@ -1,3 +1,7 @@
+# ignore private key files
+*.ppk
+*.pem
+
 # ignore lock files
 *.lock
 

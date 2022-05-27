@@ -1,11 +1,11 @@
-# Example script of connecting to an AWS/EC2 instance and running a command.
+# Example script of connecting to a VPS.
 
 require_relative '../lib/blackstack-deployer'
 n = BlackStack::Infrastructure::RemoteNode.new(
-    :net_remote_ip => '54.160.137.218',  
-    :ssh_username => 'ubuntu',
+    :net_remote_ip => '81.28.96.103', #'54.160.137.218',
+    :ssh_username => 'root',
     :ssh_port => 22,
-    :ssh_private_key_file => './plank.pem',
+    :ssh_password => 'fr*****M',
 )
 # => BlackStack::Infrastructure::RemoteNode
 
@@ -13,6 +13,6 @@ n.connect
 # => n.ssh
 
 puts n.ssh.exec!('hostname')
-# => 'ip-172-31-21-6'
+# => 'ns1063'
 
 

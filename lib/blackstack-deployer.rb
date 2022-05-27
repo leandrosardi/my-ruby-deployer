@@ -75,7 +75,7 @@ module BlackStack
         !self.net_remote_ip.nil? && !self.ssh_username.nil? && !self.ssh_private_key_file.nil?
       end
 
-      def connect()
+      def connect
         # connect
         if self.ssh_user_password?
           self.ssh = Net::SSH.start(self.net_remote_ip, self.ssh_username, :password => self.ssh_password, :port => self.ssh_port)
@@ -85,7 +85,7 @@ module BlackStack
           raise "No ssh credentials available"
         end
         self.ssh
-      end # def connect()
+      end # def connect
 
     end # module BaseNode
 
