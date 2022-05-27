@@ -15,4 +15,6 @@ n.connect
 puts n.ssh.exec!('hostname')
 # => 'ip-172-31-21-6'
 
+n.disconnect
+# => nil
 

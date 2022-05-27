@@ -1,10 +1,12 @@
 require 'net/ssh'
+require 'simple_cloud_logging'
 
 module BlackStack
   
   # TODO: move this to the blackstack-code library
   module Infrastructure
 
+    # this module has attributes an methods used by both classes RemoteNode and Node.
     module BaseNode
       attr_accessor :ssh
 
@@ -47,6 +49,7 @@ module BlackStack
         # raise an exception if any error happneed
         raise "The node descriptor is not valid: #{errors.uniq.join(".\n")}" if errors.length > 0
         # map attributes
+        self.name = h[:name]
         self.net_remote_ip = h[:net_remote_ip]
         self.ssh_username = h[:ssh_username]
         self.ssh_password = h[:ssh_password] 
@@ -56,6 +59,7 @@ module BlackStack
 
       def to_hash
         {
+          :name => self.name,
           :net_remote_ip => self.net_remote_ip,
           :ssh_username => self.ssh_username,
           :ssh_password => self.ssh_password, 
@@ -66,20 +70,20 @@ module BlackStack
 
 
       # return true if the node is all set to connect using ssh user and password.
-      def ssh_user_password?
+      def using_password?
         !self.net_remote_ip.nil? && !self.ssh_username.nil? && !self.ssh_password.nil?
       end
 
       # return true if the node is all set to connect using a private key file.
-      def ssh_private_key_file?
+      def using_private_key_file?
         !self.net_remote_ip.nil? && !self.ssh_username.nil? && !self.ssh_private_key_file.nil?
       end
 
       def connect
         # connect
-        if self.ssh_user_password?
+        if self.using_password?
           self.ssh = Net::SSH.start(self.net_remote_ip, self.ssh_username, :password => self.ssh_password, :port => self.ssh_port)
-        elsif self.ssh_private_key_file?
+        elsif self.using_private_key_file?
           self.ssh = Net::SSH.start(self.net_remote_ip, self.ssh_username, :keys => self.ssh_private_key_file, :port => self.ssh_port)
         else
           raise "No ssh credentials available"
@@ -87,9 +91,15 @@ module BlackStack
         self.ssh
       end # def connect
 
+      def disconnect
+        self.ssh.close
+      end
     end # module BaseNode
 
+    # this class represents a node, without using connection to the database.
+    # use this class to create a node descriptor, remotely, when you have no connection to the database. 
     class RemoteNode
+      attr_accessor :name # this is just a descriptive name for the node. It is not the host name, nor the domain, nor any ip. 
       attr_accessor :net_remote_ip, :ssh_username, :ssh_password, :ssh_port, :ssh_private_key_file
       include BaseNode
     end # class RemoteNode
@@ -98,27 +108,38 @@ module BlackStack
 
   module Deployer
     module Nodes
+      @@logger = BlackStack::BaseLogger.new(nil)
       @@nodes = []
       @@routines = []
       @@profiles = []
 
-      def self.errors()
-        @@errors
+      # get the logger assigned to the module
+      def self.logger
+        @@logger
       end # def self.errors
   
       # validate the configuration of a node descritor.
       # this method should be called by the final user.
       def self.validate_node_descritor(h)
-        errors = BlackStack::Infrastructure::Node.descriptor_errors(h)
-        
+        errors = BlackStack::Infrastructure::BaseNode.descriptor_errors(h)
+
+        # validate: the parameter h has a key :name
+        errors << "The parameter h does not have a key :name" unless h.has_key?(:name)
+
+        # validate: the parameter h[:name] is a string
+        errors << "The parameter h[:name] is not a string" unless h[:name].is_a?(String)
+
+        # validate: does not exist any other element in @@nodes with the same value for the parameter h[:name]
+        errors << "The parameter h[:name] is not unique" if @@nodes.select{|n| n[:name] == h[:name]}.length > 0 
+
         # validate: the parameter h has a key :deployment_routine
-        errors << "The parameter h does not have a key :deployment_routine" unless h.has_key?(:deployment_routine)
+        #errors << "The parameter h does not have a key :deployment_routine" unless h.has_key?(:deployment_routine)
 
         # validate: the parameter h[:deployment_routine] is a string
-        errors << "The parameter h[:deployment_routine] is not a string" unless h[:deployment_routine].is_a?(String)
+        #errors << "The parameter h[:deployment_routine] is not a string" unless h[:deployment_routine].is_a?(String)
 
         # validate: exists a routine with the name h[:deployment_routine]
-        errors << "The parameter h[:deployment_routine] does not exist in the routines list" unless @@routines.select { |r| r.name == h[:deployment_routine] }.size > 0
+        #errors << "The parameter h[:deployment_routine] does not exist in the routines list" unless @@routines.select { |r| r.name == h[:deployment_routine] }.size > 0
 
         # raise an exception if any error happneed
         raise "The node descriptor is not valid: #{errors.uniq.join(".\n")}" if errors.length > 0
@@ -140,7 +161,7 @@ module BlackStack
       # remove all exisiting nodes in he list of nodes.
       # then, add the nodes in the parameter a to the list of nodes.
       def self.set_nodes(a)
-        @@nodes.remove_all
+        @@nodes.clear
         BlackStack::Deployer::Nodes.add_nodes(a)
       end # def
 
@@ -156,7 +177,7 @@ module BlackStack
         errors << "The parameter h does not have a key :name" unless h.has_key?(:name)
 
         # validate: the paramerer h has a key :command
-        errors << "The parameter h does not have a key :command" unless h.has_key?(:command)
+        errors << "The parameter h does not have a key :commands" unless h.has_key?(:commands)
 
         # validate: the parameter h[:name] is a string or a symbol
         errors << "The parameter h[:name] is not a string" unless h[:name].is_a?(String)
@@ -183,7 +204,7 @@ module BlackStack
           # if the parameter h[:name] is a symbol
           if c[:command].is_a?(Symbol)
             # validate: existis a routine with a the value c[:command].to_s on its :name key
-            errors << "The routine with the name #{c[:command].to_s} does not exist" unless BlackStack::Deployer::Routines.select { |r| r[:name] == c[:command].to_s }.size > 0
+            errors << "The routine with the name #{c[:command].to_s} does not exist" unless BlackStack::Deployer::Nodes.select { |r| r[:name] == c[:command].to_s }.size > 0
           end
 
           # if c[:matches] exists
@@ -230,7 +251,7 @@ module BlackStack
 
       # add a routine to the list of routines.
       def self.add_routine(h)
-        BlackStack::Deployer::Routines.validate_routine_descritor(h)
+        BlackStack::Deployer::Nodes.validate_routine_descritor(h)
         @@routines << h
       end # def
 
@@ -238,18 +259,61 @@ module BlackStack
       def self.add_routines(a)
         # validate: the parameter a is an array
         raise "The parameter a is not an array" unless a.is_a?(Array)
-        a.each { |h| BlackStack::Deployer::Routines.add_routine(h) }
+        a.each { |h| BlackStack::Deployer::Nodes.add_routine(h) }
       end # def
 
       # remove all exisiting routines in he list of routines.
       # then, add the routines in the parameter a to the list of routines.
       def self.set_routines(a)
-        @@routines.remove_all
-        BlackStack::Deployer::Routines.add_routines(a)
+        @@routines.clear
+        BlackStack::Deployer::Nodes.add_routines(a)
       end # def
       
       # running a routine on a node
       def self.run(node_name, routine_name)
+        errors = []
+
+        # find the node with the value node_name in the key :name
+        n = @@nodes.select { |n| n[:name] == node_name }.first
+
+        # find the routine with the value routine_name in the key :name
+        r = @@routines.select { |r| r[:name] == routine_name }.first
+
+        # validate: the node n exists
+        errors << "The node with the name #{node_name} does not exist" unless n
+
+        # validate: the routine r exists
+        errors << "The routine with the name #{routine_name} does not exist" unless r
+
+        # raise exception if any error has been found
+        raise "The routine #{routine_name} cannot be run on the node #{node_name}: #{errors.uniq.join(".\n")}" if errors.length > 0
+        
+        # getting a node object
+        o = BlackStack::Infrastructure::RemoteNode.new(
+            :net_remote_ip => n[:net_remote_ip],  
+            :ssh_username => n[:ssh_username],
+            :ssh_port => n[:ssh_port],
+            :ssh_password => n[:ssh_password],
+            :ssh_private_key_file => n[:ssh_private_key_file],
+        )
+
+        # connect the node
+        o.connect
+        
+        # run the routine
+        r[:commands].each do |c|
+          self.logger.logs "Running command #{c[:command]} on the node #{node_name}... "
+          if o.using_password?
+            s = o.ssh.exec!("echo '#{o.ssh_password.gsub("'", "\\'")}' | sudo -S su root -c '#{c[:command].gsub("'", "\\'")}'")
+          elsif o.using_private_key_file?
+            s = o.ssh.exec!("sudo -S su root -c '#{c[:command].gsub("'", "\\'")}'")
+          end
+          self.logger.logf "Done.\nOutput:#{s}"
+        end 
+        
+        # disconnect the node
+        o.disconnect
+        
       end # def
       
       # deploying all routines on all nodes

@@ -15,4 +15,6 @@ n.connect
 puts n.ssh.exec!('hostname')
 # => 'ns1063'
 
+n.disconnect
+# => nil
 

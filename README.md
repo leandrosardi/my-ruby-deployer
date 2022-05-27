@@ -29,7 +29,7 @@ gem install blackstack-deployer
 require 'blackstack-deployer'
 
 # setup nodes
-BlackStack::Deployer::Node.set_nodes([{
+BlackStack::Deployer::Nodes.set_nodes([{
   :net_remote_ip => 's1.mydomain.com', 
   :ssh_username => 'username', 
   :ssh_password => 'password', 
@@ -43,10 +43,12 @@ BlackStack::Deployer::Node.set_nodes([{
 Instead of defining the `ssh_username` and `ssh_password`, you can setup either `.pem` or `.ppk` private key files.
 
 ```ruby
-BlackStack::Deployer::Node.add_node({
+BlackStack::Deployer::Nodes.add_node(
+  :name => 'node1',
   :net_remote_ip => 'db.mydomain.com', 
+  :ssh_username => 'username',
   :ssh_private_key_file => '~/certs/db.pem', 
-})
+)
 ``` 
 
 As a final note: the only name that you can't assign to a routine `'reboot'`, because it is reserved as a native routine of **blackstack-deployer**.
@@ -55,7 +57,7 @@ As a final note: the only name that you can't assign to a routine `'reboot'`, be
 
 ```ruby
 # setup deploying rutines
-BlackStack::Deployer::Node.set_routines([{
+BlackStack::Deployer::Nodes.set_routines([{
   :name => 'pull-source-code',
   :commands => [
     { :command => 'cd ~/code/myrpa' },
@@ -74,7 +76,7 @@ BlackStack::Deployer::Node.set_routines([{
 **Step 4:** Run a deployment routine
 
 ```ruby
-BlackStack::Deployer::Node.run('s1.mydomain.com', 'pull-source-code');
+BlackStack::Deployer::Nodes.run('node1', 'pull-source-code');
 # => true
 ```
 
@@ -86,7 +88,7 @@ You can also look for a list of well known error messages, listed in the `:nomat
 
 ```ruby
 # setup deploying rutines for different kind of servers.
-BlackStack::Deployer::Node.add_routine({
+BlackStack::Deployer::Nodes.add_routine(
     # download the latest version of source code
     :name => 'restart-webserver',
     # run additional bash commands, and validate outputs.
@@ -106,7 +108,7 @@ BlackStack::Deployer::Node.add_routine({
         ]
       },
     ],
-});
+);
 ```
 
 ## 3. Defining Node Profiles
@@ -114,12 +116,14 @@ BlackStack::Deployer::Node.add_routine({
 **Step 1:** Define the routine that each node should run for deploying.
 
 ```ruby
-BlackStack::Deployer::Node.set_nodes([{
+BlackStack::Deployer::Nodes.set_nodes([{
+  :name=>'node1',
   :net_remote_ip => 's1.mydomain.com', 
   :ssh_username => 'username', 
   :ssh_password => 'password', 
   :deployment_routine => 'rpa-node',
 }, { 
+  :name=>'node2',
   :net_remote_ip => 's2.mydomain.com', 
   :ssh_username => 'username', 
   :ssh_password => 'password', 
@@ -130,7 +134,7 @@ BlackStack::Deployer::Node.set_nodes([{
 **Step 2:** Run deployment for all nodes.
 
 ```ruby
-BlackStack::Deployer::Node.deploy()
+BlackStack::Deployer::Nodes.deploy()
 ```
 
 ## 4. Database Installation
@@ -278,7 +282,7 @@ You can request node reboot as part of a routine.
 
 ```ruby
 # setup deploying rutines for different kind of servers.
-BlackStack::Deployer::Node.add_routines([{
+BlackStack::Deployer::Nodes.add_routines([{
   :name => 'change-server-name',
   :commands => [
     { :command => "echo 'dbsrv1' > /etc/hostname" },
@@ -293,7 +297,7 @@ Your can define parameters parameters between `%` chars, as is shown in the code
 
 ```ruby
 # setup deploying rutines for different kind of servers.
-BlackStack::Deployer::Node.add_routines([{
+BlackStack::Deployer::Nodes.add_routines([{
   :name => 'change-server-name',
   :commands => [
     { :command => "echo '%hostname%' > /etc/hostname" },
@@ -305,7 +309,8 @@ BlackStack::Deployer::Node.add_routines([{
 The value to assign will be taken from the hash descriptor of the node.
 
 ```ruby
-BlackStack::Deployer::Node.add_nodes([{
+BlackStack::Deployer::Nodes.add_nodes([{
+  :name => 'node1',
   :net_remote_ip => 'db.mydomain.com', 
   :ssh_username => 'username', 
   :ssh_password => 'password', 
@@ -320,7 +325,7 @@ You can request the execution of a routine as part of a bigger routine.
 
 ```ruby
 # setup deploying rutines for different kind of servers.
-BlackStack::Deployer::Node.add_routines([{
+BlackStack::Deployer::Nodes.add_routines([{
   :name => 'installation',
   :commands => [
     { :command => :change-server-name },
