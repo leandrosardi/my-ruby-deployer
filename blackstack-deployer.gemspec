@@ -10,12 +10,11 @@ You can define those steps yourself, or by using pre-built task libraries provid
   s.authors     = ["Leandro Daniel Sardi"]
   s.email       = 'leandro.sardi@expandedventure.com'
   s.files       = [
-    "lib/pampa_deployer.rb",
+    "lib/pampa-deployer.rb",
   ]
   s.homepage    = 'https://rubygems.org/gems/blackstack-deployer'
   s.license     = 'MIT'
-  s.add_runtime_dependency 'net-ssh', '~> 6.1.0', '>= 6.1.0'
-  s.add_runtime_dependency 'simple_cloud_logging', '~> 1.2.2', '>= 1.2.2'
+  s.add_runtime_dependency 'blackstack-nodes', '~> 1.2.2', '>= 1.2.2'
 #  s.add_runtime_dependency 'websocket', '~> 1.2.8', '>= 1.2.8'
 #  s.add_runtime_dependency 'json', '~> 2.3.0', '>= 2.3.0'
 #  s.add_runtime_dependency 'pg', '~> 1.3.5', '>= 1.3.5'
