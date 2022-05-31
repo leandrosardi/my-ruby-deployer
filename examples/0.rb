@@ -4,20 +4,170 @@ require_relative '../lib/blackstack-deployer'
 
 # add node to the cluster
 BlackStack::Deployer::add_node({
-    :name => 'node1',
-    :net_remote_ip => '54.160.137.218',  
+    :name => 'node0004',
+    :net_remote_ip => '34.203.199.68',  
     :ssh_username => 'ubuntu',
     :ssh_port => 22,
     :ssh_private_key_file => './plank.pem',
     :deployment_routine => 'web-servers',
 })
 
-n = BlackStack::Deployer.nodes.first
-n.connect
-puts n.ssh.exec!('ls')
-n.disconnect
-exit(0)
+# setup deploying rutines
+BlackStack::Deployer::add_routine({
+  :name => 'upgrade-packages',
+  :commands => [
+    { 
+        :command => 'apt update', 
+        :matches => [/packages can be upgraded/i, /All packages are up to date/i], 
+        :nomatches => [{ :nomatch => /error/, :error_description => 'An Error Occurred' }] 
+    }, { 
+        :command => 'apt -y upgrade', 
+        :matches => [/done/, /(\d)+ upgraded, (\d)+ newly installed, (\d)+ to remove and (\d)+ not upgraded/i], 
+        :nomatches => [{ :nomatch => /error/, :error_description => 'An Error Occurred' }] 
+    },
+  ],
+});
 
+# setup deploying rutines
+BlackStack::Deployer::add_routine({
+  :name => 'create-blackstack-user',
+  :commands => [
+    { 
+        # create a new blackstack user.
+        :command => 'useradd -m -d /home/blackstack blackstack', 
+        :matches => [/^$/i, /already exists/i], # the success of the command doesn't return anyting.
+        :nomatches => [
+            { :nomatch => /error/, :error_description => 'An Error Occurred' }, 
+            { :nomatch => /denied/i, :error_description => 'An Error Occurred' },
+            { :nomatch => /cannot/i, :error_description => 'An Error Occurred' },
+        ] 
+    }, { 
+        # change the password of the blackstack user.
+        # reference: https://askubuntu.com/questions/80444/how-to-set-user-passwords-using-passwd-without-a-prompt
+        :command => 'usermod --password $(echo SantaClara123 | openssl passwd -1 -stdin) blackstack', 
+        :matches => [/^$/i], # the success of the command doesn't return anyting.
+        :nomatches => [
+            { :nomatch => /error/, :error_description => 'An Error Occurred' }, 
+            { :nomatch => /denied/i, :error_description => 'An Error Occurred' },
+            { :nomatch => /cannot/i, :error_description => 'An Error Occurred' },
+        ] 
+    }, { 
+        # add blackstack to the sudoers group.
+        :command => 'adduser blackstack sudo', 
+        :matches => [/Done./i, /is already a member of/], 
+        :nomatches => [
+            { :nomatch => /Only root may add a user or group to the system/, :error_description => 'An Error Occurred' }, 
+            { :nomatch => /error/, :error_description => 'An Error Occurred' }, 
+            { :nomatch => /denied/i, :error_description => 'An Error Occurred' },
+            { :nomatch => /cannot/i, :error_description => 'An Error Occurred' },
+        ] 
+    },
+  ],
+});
+
+# setup deploying rutines
+BlackStack::Deployer::add_routine({
+  :name => 'install-packages',
+  :commands => [
+    { 
+        :command => 'apt install -y net-tools', 
+        :matches => [/(\d)+ upgraded, (\d)+ newly installed, (\d)+ to remove and (\d)+ not upgraded/i], 
+        :nomatches => [
+            { :nomatch => /Unable to locate package/, :error_description => 'Unable to locate package' }, 
+            { :nomatch => /^E: /i, :error_description => 'An Error Occurred' },
+        ] 
+    }, { 
+        :command => 'apt install -y gnupg2', 
+        :matches => [/(\d)+ upgraded, (\d)+ newly installed, (\d)+ to remove and (\d)+ not upgraded/i], 
+        :nomatches => [
+            { :nomatch => /Unable to locate package/, :error_description => 'Unable to locate package' }, 
+            { :nomatch => /^E: /i, :error_description => 'An Error Occurred' },
+        ] 
+    }, { 
+        :command => 'apt install -y git', 
+        :matches => [/(\d)+ upgraded, (\d)+ newly installed, (\d)+ to remove and (\d)+ not upgraded/i], 
+        :nomatches => [
+            { :nomatch => /Unable to locate package/, :error_description => 'Unable to locate package' }, 
+            { :nomatch => /^E: /i, :error_description => 'An Error Occurred' },
+        ]
+    }, { 
+        :command => 'apt install -y libpq-dev', 
+        :matches => [/(\d)+ upgraded, (\d)+ newly installed, (\d)+ to remove and (\d)+ not upgraded/i], 
+        :nomatches => [
+            { :nomatch => /Unable to locate package/, :error_description => 'Unable to locate package' }, 
+            { :nomatch => /^E: /i, :error_description => 'An Error Occurred' },
+        ]    
+    },
+  ],
+});
+
+# setup deploying rutines
+BlackStack::Deployer::add_routine({
+  :name => 'install-ruby',
+  :commands => [
+    { 
+        :command => 'cd /tmp; curl -sSL https://get.rvm.io -o rvm.sh', 
+        :nomatches => [ # no output means success.
+            { :nomatch => /.+/i, :error_description => 'An Error Occurred' },
+        ],
+        :sudo => false,
+    }, { 
+        :command => "echo 'SantaClara123' | sudo -S su blackstack -c 'gpg2 --keyserver keyserver.ubuntu.com --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 7D2BAF1CF37B13E2069D6956105BD0E739499BDB;cat /tmp/rvm.sh | bash -s stable --rails'", 
+        :matches => [/(\d)+ gems installed/i, /1 gem installed/i],
+        :nomatches => [ 
+            { :nomatch => /error/i, :error_description => 'An Error Occurred' },
+        ],
+        :sudo => false,
+    }, { 
+        # reference: https://askubuntu.com/questions/504546/error-message-source-not-found-when-running-a-script
+        :command => "echo 'SantaClara123' | sudo -S su blackstack -c '#!/bin/bash; source /home/blackstack/.rvm/scripts/rvm; rvm install 3.1.2; rvm --default use 3.1.2;'", 
+        :nomatches => [ # no output means success.
+            { :nomatch => /.+/i, :error_description => 'An Error Occurred' },
+        ],
+        :sudo => false,    
+# TODO: Add validatin the ruby 3.1.2 has been installed for the user blackstack.
+=begin
+# bundler already installed
+    }, { 
+        # reference: https://askubuntu.com/questions/504546/error-message-source-not-found-when-running-a-script
+        :command => "echo 'SantaClara123' | sudo -S su blackstack -c '#!/bin/bash; gem install bundler -v '2.3.7';'", 
+        :nomatches => [ # no output means success.
+            { :nomatch => /.+/i, :error_description => 'An Error Occurred' },
+        ],
+        :sudo => false,    
+=end
+    },
+  ],
+});
+
+# setup deploying rutines
+BlackStack::Deployer::add_routine({
+  :name => 'install-free-membership-sites',
+  :commands => [
+    { 
+        :command => 'mkdir /home/blackstack/code',
+        :matches => [ /^$/i, /File exists/i ],
+    }, { 
+        :command => 'cd /home/blackstack/code; git clone https://github.com/leandrosardi/free-membership-sites',
+        :matches => [ 
+            /Resolving deltas\: 100\% \((\d)+\/(\d)+\), done\./i,
+            /fatal\: destination path \'free-membership-sites\' already exists and is not an empty directory\./i,
+        ],
+        :nomatches => [ # no output means success.
+            { :nomatch => /error/i, :error_description => 'An Error Occurred' },
+        ],
+    },
+  ],
+});
+
+
+#BlackStack::Deployer::run_routine('node0004', 'upgrade-packages');
+#BlackStack::Deployer::run_routine('node0004', 'create-blackstack-user');
+#BlackStack::Deployer::run_routine('node0004', 'install-packages');
+#BlackStack::Deployer::run_routine('node0004', 'install-ruby');
+BlackStack::Deployer::run_routine('node0004', 'install-free-membership-sites');
+
+=begin
 # setup deploying rutines
 BlackStack::Deployer::set_routines([{
   :name => 'pull-source-code',
@@ -29,3 +179,4 @@ BlackStack::Deployer::set_routines([{
 }]);
 
 BlackStack::Deployer::run_routine('node1', 'pull-source-code');
+=end

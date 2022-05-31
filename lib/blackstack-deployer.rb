@@ -124,8 +124,8 @@ module BlackStack
           h = c.run(node)
           ret << h
 
-          BlackStack::Deployer.logger.logs "Result: "
-          BlackStack::Deployer.logger.logf h.to_s
+          #BlackStack::Deployer.logger.logs "Result: "
+          #BlackStack::Deployer.logger.logf h.to_s
 
           if h[:errors].size == 0
             BlackStack::Deployer.logger.done
@@ -140,7 +140,7 @@ module BlackStack
 
     # define attributes and methods of a routine's command
     module CommandModule
-      attr_accessor :command, :matches, :nomatches
+      attr_accessor :command, :matches, :nomatches, :sudo
 
       def self.descriptor_errors(c)
         errors = []
@@ -153,6 +153,11 @@ module BlackStack
 
         # validate: the value of c[:command] is a string or symbol
         errors << "The value of c[:command] is not a string and is not a symbol" unless c[:command].is_a?(String) || c[:command].is_a?(Symbol)
+
+        # validate: if the key :sudo exists, then its value is a boolean
+        if c.has_key?(:sudo)
+          errors << "The value of c[:sudo] is not a boolean" unless c[:sudo].is_a?(TrueClass) || c[:sudo].is_a?(FalseClass)
+        end
 
         # if the parameter h[:name] is a symbol
         if c[:command].is_a?(Symbol)
@@ -193,6 +198,7 @@ module BlackStack
         errors = BlackStack::Deployer::CommandModule.descriptor_errors(h)
         raise "The node descriptor is not valid: #{errors.uniq.join(".\n")}" if errors.length > 0
         self.command = h[:command]
+        self.sudo = h[:sudo].nil? ? true : h[:sudo]
         self.matches = []
         self.nomatches = []
         if h.has_key?(:matches)
@@ -218,6 +224,7 @@ module BlackStack
       def to_hash
         h = {}
         h[:command] = self.command
+        h[:sudo] = self.sudo
         h[:matches] = []
         h[:nomatches] = []
         self.matches.each do |m|
@@ -231,10 +238,29 @@ module BlackStack
 
       def run(node)
         errors = []
-        output = node.ssh.exec!(self.command)
-        self.matches.each do |m|
-          errors += m.validate(output)
+        if self.sudo
+          if node.ssh_private_key_file.nil?
+            s = "echo '#{node.ssh_password.to_s.gsub("'", "\\'")}' | sudo -S su root -c '#{self.command.to_s.gsub("'", "\\'")}'"
+          else
+            s = "sudo -S su root -c '#{self.command.to_s.gsub("'", "\\'")}'"
+          end
+        else
+          s = self.command.to_s
         end
+        output = node.ssh.exec!(s)
+
+        # at least one of the matches should happen
+        if self.matches.size > 0
+          i = 0
+          self.matches.each do |m|
+            if m.validate(output).size == 0 # no errors 
+              i += 1
+            end
+          end
+          errors << "Command output doesn't match with any of the :matches" if i == 0
+        end # if self.matches.size > 0 
+        
+        # no one of the nomatches should happen
         self.nomatches.each do |m|
           errors += m.validate(output)
         end
@@ -262,7 +288,7 @@ module BlackStack
       def initialize(h)
         errors = BlackStack::Deployer::MatchModule.descriptor_errors(h)
         raise "The node descriptor is not valid: #{errors.uniq.join(".\n")}" if errors.length > 0
-        self.match = h[:match]
+        self.match = h
       end
 
       def to_hash
@@ -318,7 +344,7 @@ module BlackStack
       def validate(output)
         errors = []
         if !self.error_description.nil?
-          errors << self.error_description unless output.match(self.nomatch)
+          errors << self.error_description if output.match(self.nomatch)
         else
           errors << "The output of the command matches the regular expression #{self.nomatch.inspect}" if output.match(self.nomatch)
         end
