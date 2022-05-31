@@ -45,6 +45,8 @@ module BlackStack
       end
 
       def initialize(h)
+        errors = BlackStack::Deployer::NodeModule.descriptor_errors(h)
+        raise "The node descriptor is not valid: #{errors.uniq.join(".\n")}" if errors.length > 0
         super(h)
         self.deployment_routine = h[:deployment_routine]
       end # def self.create(h)
@@ -58,6 +60,8 @@ module BlackStack
 
     # define attributes and methods of a deployer routine
     module RoutineModule
+      attr_accessor :name, :commands
+
       def self.descriptor_errors(h)
         errors = []
 
@@ -92,10 +96,52 @@ module BlackStack
     
         errors.uniq
       end # def self.descriptor_error(h)
+
+      def initialize(h)
+        errors = BlackStack::Deployer::RoutineModule.descriptor_errors(h)
+        raise "The node descriptor is not valid: #{errors.uniq.join(".\n")}" if errors.length > 0
+        self.name = h[:name]
+        self.commands = []
+        h[:commands].each do |c|
+          self.commands << BlackStack::Deployer::Command.new(c)
+        end
+      end
+
+      def to_hash
+        h = {}
+        h[:name] = self.name
+        h[:commands] = []
+        self.commands.each do |c|
+          h[:commands] << c.to_hash
+        end
+        h
+      end
+
+      def run(node)
+        ret = []
+        self.commands.each do |c|
+          BlackStack::Deployer.logger.logs "Running command: #{c.command.to_s}... "
+          h = c.run(node)
+          ret << h
+
+          BlackStack::Deployer.logger.logs "Result: "
+          BlackStack::Deployer.logger.logf h.to_s
+
+          if h[:errors].size == 0
+            BlackStack::Deployer.logger.done
+          else
+            BlackStack::Deployer.logger.logf('error: ' + h.to_s)
+            raise "Error running command: #{h.to_s}"
+          end
+        end
+        ret
+      end # def run(node)
     end # module RoutineModule
 
     # define attributes and methods of a routine's command
     module CommandModule
+      attr_accessor :command, :matches, :nomatches
+
       def self.descriptor_errors(c)
         errors = []
 
@@ -142,10 +188,69 @@ module BlackStack
         # 
         errors.uniq
       end # def self.descriptor_error(h)
+
+      def initialize(h)
+        errors = BlackStack::Deployer::CommandModule.descriptor_errors(h)
+        raise "The node descriptor is not valid: #{errors.uniq.join(".\n")}" if errors.length > 0
+        self.command = h[:command]
+        self.matches = []
+        self.nomatches = []
+        if h.has_key?(:matches)
+          if h[:matches].is_a?(Regexp)
+            self.matches << BlackStack::Deployer::Match.new(h[:matches])
+          else
+            h[:matches].each do |m|
+              self.matches << BlackStack::Deployer::Match.new(m)
+            end
+          end
+        end
+        if h.has_key?(:nomatches)
+          if h[:nomatches].is_a?(Regexp)
+            self.nomatches << BlackStack::Deployer::NoMatch.new(h[:nomatches])
+          else
+            h[:nomatches].each do |m|
+              self.nomatches << BlackStack::Deployer::NoMatch.new(m)
+            end
+          end
+        end                                                                                                                       
+      end # def initialize(h)
+
+      def to_hash
+        h = {}
+        h[:command] = self.command
+        h[:matches] = []
+        h[:nomatches] = []
+        self.matches.each do |m|
+          h[:matches] << m.to_hash
+        end
+        self.nomatches.each do |m|
+          h[:nomatches] << m.to_hash
+        end
+        h
+      end # def to_hash
+
+      def run(node)
+        errors = []
+        output = node.ssh.exec!(self.command)
+        self.matches.each do |m|
+          errors += m.validate(output)
+        end
+        self.nomatches.each do |m|
+          errors += m.validate(output)
+        end
+        # return a hash descriptor of the command result 
+        {
+          :command => self.command,
+          :output => output,
+          :errors => errors,
+        }
+      end # def run(node)
     end # module CommandModule
 
     # define attributes and methods of a command's match
     module MatchModule
+      attr_accessor :match
+
       def self.descriptor_errors(m)
         errors = []
         # validate the match is a regular expresion
@@ -153,11 +258,31 @@ module BlackStack
         # 
         errors.uniq
       end # def self.descriptor_error(h)
+
+      def initialize(h)
+        errors = BlackStack::Deployer::MatchModule.descriptor_errors(h)
+        raise "The node descriptor is not valid: #{errors.uniq.join(".\n")}" if errors.length > 0
+        self.match = h[:match]
+      end
+
+      def to_hash
+        h = {}
+        h[:match] = self.match
+        h
+      end
+
+      def validate(output)
+        errors = []
+        errors << "The output of the command does not match the regular expression #{self.match.inspect}" unless output.match(self.match)
+        errors
+      end
     end # module MatchModule
 
     # define attributes and methods of a command's nomatch
     module NoMatchModule
-      def self.descriptor_errors(h)
+      attr_accessor :nomatch, :error_description
+
+      def self.descriptor_errors(m)
         errors = []
         # validate the nomatch is a regular expresion
         errors << "Each nomatch is not a regex nor a hash" unless m.is_a?(Hash) || m.is_a?(Regexp)
@@ -166,7 +291,7 @@ module BlackStack
           # validate: the hash m has a key :nomatch
           errors << "The hash descriptor of the nomatch does not have a key :nomatch" unless m.has_key?(:nomatch)
           # validate: the value of m[:nomatch] is a string
-          errors << "The value of the key :nomatch is not a string" unless m[:nomatch].is_a?(String)
+          errors << "The value of the key :nomatch is not a regex" unless m[:nomatch].is_a?(Regexp)
           # validate: the hash m has a key :error_description
           errors << "The hash descriptor of the nomatch does not have a key :error_description" unless m.has_key?(:error_description)
           # validate: the value of m[:error_description] is a string
@@ -175,6 +300,31 @@ module BlackStack
         # 
         errors.uniq
       end # def self.descriptor_error(h)
+
+      def initialize(h)
+        errors = BlackStack::Deployer::NoMatchModule.descriptor_errors(h)
+        raise "The node descriptor is not valid: #{errors.uniq.join(".\n")}" if errors.length > 0
+        self.nomatch = h[:nomatch]
+        self.error_description = h[:error_description]
+      end
+
+      def to_hash
+        h = {}
+        h[:nomatch] = self.nomatch
+        h[:error_description] = self.error_description
+        h
+      end
+
+      def validate(output)
+        errors = []
+        if !self.error_description.nil?
+          errors << self.error_description unless output.match(self.nomatch)
+        else
+          errors << "The output of the command matches the regular expression #{self.nomatch.inspect}" if output.match(self.nomatch)
+        end
+        errors
+      end
+
     end # module NoMatchModule
 
 
@@ -228,7 +378,7 @@ module BlackStack
     def self.add_routine(h)
       errors = BlackStack::Deployer::RoutineModule.descriptor_errors(h)
       raise errors.join(".\n") unless errors.empty?
-      @@routines << h
+      @@routines << BlackStack::Deployer::Routine.new(h)
     end # def
 
     # add an array of routines to the list of routines.
@@ -246,45 +396,38 @@ module BlackStack
     end # def
       
     # running a routine on a node
-    def self.run(node_name, routine_name)
+    def self.run_routine(node_name, routine_name)
       errors = []
 
       # find the node with the value node_name in the key :name
-      n = @@nodes.select { |n| n[:name] == node_name }.first
+      n = @@nodes.select { |n| n.name == node_name }.first
 
       # find the routine with the value routine_name in the key :name
-      r = @@routines.select { |r| r[:name] == routine_name }.first
+      r = @@routines.select { |r| r.name == routine_name }.first
 
       # validate: the node n exists
-      errors << "The node with the name #{node_name} does not exist" unless n
+      errors << "Node #{node_name} not found" unless n
 
       # validate: the routine r exists
-      errors << "The routine with the name #{routine_name} does not exist" unless r
+      errors << "Routine #{routine_name} not found" unless r
 
       # raise exception if any error has been found
       raise "The routine #{routine_name} cannot be run on the node #{node_name}: #{errors.uniq.join(".\n")}" if errors.length > 0
         
-      # getting a node object
-      o = BlackStack::Infrastructure::Node.new(
-        :net_remote_ip => n[:net_remote_ip],  
-        :ssh_username => n[:ssh_username],
-        :ssh_port => n[:ssh_port],
-        :ssh_password => n[:ssh_password],
-        :ssh_private_key_file => n[:ssh_private_key_file],
-      )
-
       # connect the node
-      o.connect
-        
+      self.logger.logs "Connecting to node #{n.name}... "
+      n.connect
+      self.logger.done
+
       # run the routine
-      r[:commands].each do |c|
-        self.logger.logs "Running command #{c[:command]} on the node #{node_name}... "
-        self.exec(c[:command])
-        self.logger.logf "Done.\nOutput:#{s}"
-      end 
+      self.logger.logs "Running routine #{r.name}... "
+      r.run(n)
+      self.logger.done
         
       # disconnect the node
-      o.disconnect
+      self.logger.logs "Disconnecting from node #{n.name}... "
+      n.disconnect
+      self.logger.done
         
     end # def
       

@@ -4,7 +4,7 @@ require_relative '../lib/blackstack-deployer'
 
 # add node to the cluster
 BlackStack::Deployer::add_node({
-    :name => 'test-node',
+    :name => 'node1',
     :net_remote_ip => '54.160.137.218',  
     :ssh_username => 'ubuntu',
     :ssh_port => 22,
@@ -12,18 +12,20 @@ BlackStack::Deployer::add_node({
     :deployment_routine => 'web-servers',
 })
 
+n = BlackStack::Deployer.nodes.first
+n.connect
+puts n.ssh.exec!('ls')
+n.disconnect
+exit(0)
+
 # setup deploying rutines
 BlackStack::Deployer::set_routines([{
   :name => 'pull-source-code',
   :commands => [
-    { :command => 'cd ~/code/myrpa' },
-    { :command => 'git fetch --all' },
-    { :command => 'git reset --hard origin/main' },
-  ],
-}, {
-  :name => 'restart-rpa',
-  :commands => [
-    { :command => 'pkill xterm' },
-    { :command => 'xterm -e bash -c "cd ~/code/myrpa;./rpa.rb;bash"' },
+    { :command => 'cd ~/code/free-membership-sites', :nomatches => [{ :nomatch => /No such file or directory/, :error_description => 'No such file or directory' }] },
+    { :command => 'git fetch --all', :nomatches => [{ :nomatch => /Fatal\:/, :error_description => 'Fatal Error Occurred' }] },
+    { :command => 'git reset --hard origin/main', :nomatches => [{ :nomatch => /Fatal\:/, :error_description => 'Fatal Error Occurred' }] },
   ],
 }]);
+
+BlackStack::Deployer::run_routine('node1', 'pull-source-code');
