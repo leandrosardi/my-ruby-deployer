@@ -112,7 +112,7 @@ BlackStack::Deployer::add_routine({
         ],
         :sudo => false,
     }, { 
-        :command => "echo 'SantaClara123' | sudo -S su blackstack -c 'gpg2 --keyserver keyserver.ubuntu.com --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 7D2BAF1CF37B13E2069D6956105BD0E739499BDB;cat /tmp/rvm.sh | bash -s stable --rails'", 
+        :command => "gpg2 --keyserver keyserver.ubuntu.com --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 7D2BAF1CF37B13E2069D6956105BD0E739499BDB;cat /tmp/rvm.sh | bash -s stable --rails", 
         :matches => [/(\d)+ gems installed/i, /1 gem installed/i],
         :nomatches => [ 
             { :nomatch => /error/i, :error_description => 'An Error Occurred' },
@@ -120,10 +120,8 @@ BlackStack::Deployer::add_routine({
         :sudo => false,
     }, { 
         # reference: https://askubuntu.com/questions/504546/error-message-source-not-found-when-running-a-script
-        :command => "echo 'SantaClara123' | sudo -S su blackstack -c '#!/bin/bash; source /home/blackstack/.rvm/scripts/rvm; rvm install 3.1.2; rvm --default use 3.1.2;'", 
-        :nomatches => [ # no output means success.
-            { :nomatch => /.+/i, :error_description => 'An Error Occurred' },
-        ],
+        :command => "source /home/blackstack/.rvm/scripts/rvm; rvm install 3.1.2; rvm --default use 3.1.2;", 
+        :matches => [ /Already installed/i,  /installed/i ],
         :sudo => false,    
 # TODO: Add validatin the ruby 3.1.2 has been installed for the user blackstack.
 =begin
@@ -145,10 +143,11 @@ BlackStack::Deployer::add_routine({
   :name => 'install-free-membership-sites',
   :commands => [
     { 
-        :command => 'mkdir /home/blackstack/code',
+        :command => 'mkdir ~/code',
         :matches => [ /^$/i, /File exists/i ],
+        :sudo => false,
     }, { 
-        :command => 'cd /home/blackstack/code; git clone https://github.com/leandrosardi/free-membership-sites',
+        :command => 'cd ~/code; git clone https://github.com/leandrosardi/free-membership-sites',
         :matches => [ 
             /Resolving deltas\: 100\% \((\d)+\/(\d)+\), done\./i,
             /fatal\: destination path \'free-membership-sites\' already exists and is not an empty directory\./i,
@@ -156,24 +155,72 @@ BlackStack::Deployer::add_routine({
         :nomatches => [ # no output means success.
             { :nomatch => /error/i, :error_description => 'An Error Occurred' },
         ],
+        :sudo => false,
     }, { 
-        :command => 'cd /home/blackstack/code/free-membership-sites;bundle update',
+        # TODO: I can't understand why I have to do #!/bin/bash;  in order to don't get error "bundler command not found".
+        # Instead, I am getting no output because I am running with #!/bin/bash.
+        :command => '#!/bin/bash; cd ~/code/free-membership-sites; rvm --default use 3.1.2; bundler update',
+=begin
         :matches => [ 
             /Resolving deltas\: 100\% \((\d)+\/(\d)+\), done\./i,
             /fatal\: destination path \'free-membership-sites\' already exists and is not an empty directory\./i,
         ],
+=end
         :nomatches => [ # no output means success.
-            { :nomatch => /error/i, :error_description => 'An Error Occurred' },
+            { :nomatch => /.+/i, :error_description => 'An Error Occurred' },
         ],
+        :sudo => false,
     },
   ],
 });
 
+# setup deploying rutines
+BlackStack::Deployer::add_routine({
+  :name => 'install-cockrouch-cluster',
+  :commands => [
+    { 
+        :command => 'curl https://binaries.cockroachdb.com/cockroach-v21.2.10.linux-amd64.tgz | tar -xz && sudo cp -i cockroach-v21.2.10.linux-amd64/cockroach /usr/local/bin/',
+    }, { 
+        :command => 'mkdir -p /usr/local/lib/cockroach',
+    }, { 
+        # reference: https://stackoverflow.com/questions/8488253/how-to-force-cp-to-overwrite-without-confirmation
+        :command => 'yes | cp -i cockroach-v21.2.10.linux-amd64/lib/libgeos.so /usr/local/lib/cockroach/',
+    }, { 
+        # reference: https://stackoverflow.com/questions/8488253/how-to-force-cp-to-overwrite-without-confirmation
+        :command => 'yes | cp -i cockroach-v21.2.10.linux-amd64/lib/libgeos_c.so /usr/local/lib/cockroach/',
+    }, 
+    # TODO: add valdiation `which cockroach`
+    { 
+        :command => 'cd ~; mkdir certs',
+    },
+    { 
+        :command => 'cd ~; mkdir my-safe-directory',
+    },
+    { 
+        :command => 'cd ~; cockroach cert create-ca --certs-dir=certs --ca-key=my-safe-directory/ca.key',
+    },
+    { 
+        :command => 'cd ~; cockroach cert create-node localhost 172.31.17.191 $(hostname) --certs-dir certs --ca-key my-safe-directory/ca.key',
+    },
+    { 
+        :command => 'cd ~; cockroach cert create-client root --certs-dir=certs --ca-key=my-safe-directory/ca.key',
+    },
+    { 
+        :command => 'cd ~; cockroach start --certs-dir=certs --store=node0004 --listen-addr=172.31.17.191:26257 --http-addr=172.31.17.191:8080 --join=172.31.17.191:26257 --background --max-sql-memory=.25 --cache=.25',
+    },
+    { 
+        :command => 'cd ~; cockroach init --host=172.31.17.191:26257 --certs-dir=certs',
+    },
+    # TODO: connect the cockroach cluster, create database and user and grants.
+    #cd ~;cockroach sql --host 34.203.199.68 --certs-dir certs -e "CREATE USER IF NOT EXISTS blackstack WITH PASSWORD 'bsws2022';"
+  ],
+});
 
 #BlackStack::Deployer::run_routine('node0004', 'upgrade-packages');
-#BlackStack::Deployer::run_routine('node0004', 'create-blackstack-user');
+##BlackStack::Deployer::run_routine('node0004', 'create-blackstack-user');
 #BlackStack::Deployer::run_routine('node0004', 'install-packages');
 #BlackStack::Deployer::run_routine('node0004', 'install-ruby');
+#BlackStack::Deployer::run_routine('node0004', 'install-free-membership-sites');
 BlackStack::Deployer::run_routine('node0004', 'install-free-membership-sites');
 
 =begin
