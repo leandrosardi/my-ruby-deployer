@@ -28,6 +28,14 @@ module BlackStack
 
       include BlackStack::Infrastructure::NodeModule
 
+      # get the IP address for an interface using the ip addr command.
+      # this is a helper method for installing cockroachdb nodes.
+      def iip(interface='eth0')
+        a = n.ssh.exec!('ip addr show dev eth0').scan(/inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/)
+        return nil if a.size == 0
+        return a.last.to_s.gsub(/inet /, '')
+      end
+
       def self.descriptor_errors(h)
         errors = BlackStack::Infrastructure::NodeModule.descriptor_errors(h)
  

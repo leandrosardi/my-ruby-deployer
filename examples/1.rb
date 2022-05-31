@@ -10,7 +10,16 @@ BlackStack::Deployer::add_node({
     :ssh_port => 22,
     :ssh_private_key_file => './plank.pem',
     :deployment_routine => 'web-servers',
+    #:eth0_ip => 'como cargar un resultado del nodo aqui', # ==> this is a native variable
+    :db_port => 26257,
+    :dashboard_port => 8080,
 })
+
+n = BlackStack::Deployer.nodes.first
+n.connect
+puts n.ssh.exec!('ip addr show dev eth0').scan(/inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/).last.to_s.gsub(/inet /, '')
+n.disconnect
+exit(0)
 
 # setup deploying rutines
 BlackStack::Deployer::add_routine({
@@ -200,16 +209,16 @@ BlackStack::Deployer::add_routine({
         :command => 'cd ~; cockroach cert create-ca --certs-dir=certs --ca-key=my-safe-directory/ca.key',
     },
     { 
-        :command => 'cd ~; cockroach cert create-node localhost 172.31.17.191 $(hostname) --certs-dir certs --ca-key my-safe-directory/ca.key',
+        :command => 'cd ~; cockroach cert create-node localhost %eth0_ip% $(hostname) --certs-dir certs --ca-key my-safe-directory/ca.key',
     },
     { 
         :command => 'cd ~; cockroach cert create-client root --certs-dir=certs --ca-key=my-safe-directory/ca.key',
     },
     { 
-        :command => 'cd ~; cockroach start --certs-dir=certs --store=node0004 --listen-addr=172.31.17.191:26257 --http-addr=172.31.17.191:8080 --join=172.31.17.191:26257 --background --max-sql-memory=.25 --cache=.25',
+        :command => 'cd ~; cockroach start --certs-dir=certs --store=node0004 --listen-addr=%eth0_ip%:%db_port% --http-addr=%eth0_ip%:%dashboard_port% --join=%eth0_ip%:%db_port% --background --max-sql-memory=.25 --cache=.25',
     },
     { 
-        :command => 'cd ~; cockroach init --host=172.31.17.191:26257 --certs-dir=certs',
+        :command => 'cd ~; cockroach init --host=%eth0_ip%:%db_port% --certs-dir=certs',
     },
     # TODO: connect the cockroach cluster, create database and user and grants.
     #cd ~;cockroach sql --host 34.203.199.68 --certs-dir certs -e "CREATE USER IF NOT EXISTS blackstack WITH PASSWORD 'bsws2022';"
