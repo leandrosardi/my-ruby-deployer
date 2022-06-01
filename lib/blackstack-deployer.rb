@@ -290,10 +290,6 @@ module BlackStack
             end
           end
 
-puts
-puts code
-exit(0)
-
           # running the command
           if self.sudo
             # escale the single quotes in the code variable
@@ -307,6 +303,9 @@ exit(0)
           else
             code = code.to_s
           end
+puts
+puts code
+exit(0)
           output = node.ssh.exec!(code)
 
           # validation: at least one of the matches should happen
