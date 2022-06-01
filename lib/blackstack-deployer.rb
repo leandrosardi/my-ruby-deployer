@@ -303,9 +303,9 @@ module BlackStack
           else
             code = code.to_s
           end
-puts
-puts code
-exit(0)
+#puts
+#puts code
+#exit(0)
           output = node.ssh.exec!(code)
 
           # validation: at least one of the matches should happen
