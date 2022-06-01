@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name        = 'blackstack-deployer'
-  s.version     = '1.2.1'
-  s.date        = '2022-04-22'
+  s.version     = '1.2.2'
+  s.date        = '2022-06-01'
   s.summary     = "BlackStack Deployer is a deployment automation tool built on Ruby and SSH."
   s.description = "BlackStack Deployer automates what you already know how to do manually, but in a repeatable, scalable fashion. There is no magic here!
 BlackStack Deployer dutifully connects to your server(s) via SSH and executes the steps necessary to deploy your project. 
@@ -10,7 +10,7 @@ You can define those steps yourself, or by using pre-built task libraries provid
   s.authors     = ["Leandro Daniel Sardi"]
   s.email       = 'leandro.sardi@expandedventure.com'
   s.files       = [
-    "lib/pampa-deployer.rb",
+    "lib/blackstack-deployer.rb",
   ]
   s.homepage    = 'https://rubygems.org/gems/blackstack-deployer'
   s.license     = 'MIT'
