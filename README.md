@@ -1,4 +1,4 @@
-**THIS GEM IS UNDER CONSTRUCTION**
+![logo](logo.png)
 
 # BlackStack Deployer
 
@@ -329,5 +329,7 @@ BlackStack::Deployer::DB::enable_checkpoints(true);
 1. [pg](https://rubygems.org/gems/pg/) for connecting PostgreSQL database; 
 2. [Sequel](https://github.com/jeremyevans/sequel) for simplifying some database tasks;
 3. [Net::SSH](https://github.com/net-ssh/net-ssh) for connecting Linux servers via SSH;
+
+The has been taken from [here](https://www.shareicon.net/space-exploration-transport-rocket-ship-rocket-space-ship-rocket-silhouette-rocket-ship-launch-669455).
 
 
