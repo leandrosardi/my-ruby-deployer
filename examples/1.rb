@@ -15,11 +15,17 @@ BlackStack::Deployer::add_node({
     :dashboard_port => 8080,
 })
 
-n = BlackStack::Deployer.nodes.first
-n.connect
-puts n.ssh.exec!('ip addr show dev eth0').scan(/inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/).last.to_s.gsub(/inet /, '')
-n.disconnect
-exit(0)
+# change hostname
+BlackStack::Deployer::add_routine({
+  :name => 'change-hostname',
+  :commands => [
+    { 
+        :command => 'echo "%name%" > /etc/hostname', 
+    }, { 
+        :command => :reboot
+    },
+  ],
+});
 
 # setup deploying rutines
 BlackStack::Deployer::add_routine({
@@ -225,12 +231,20 @@ BlackStack::Deployer::add_routine({
   ],
 });
 
-#BlackStack::Deployer::run_routine('node0004', 'upgrade-packages');
-##BlackStack::Deployer::run_routine('node0004', 'create-blackstack-user');
-#BlackStack::Deployer::run_routine('node0004', 'install-packages');
-#BlackStack::Deployer::run_routine('node0004', 'install-ruby');
-#BlackStack::Deployer::run_routine('node0004', 'install-free-membership-sites');
-BlackStack::Deployer::run_routine('node0004', 'install-free-membership-sites');
+
+# setup deploying rutines
+BlackStack::Deployer::add_routine({
+  :name => 'install-full-node-on-aws',
+  :commands => [
+    { :command => :'change-hostname', }, 
+    { :command => :'upgrade-packages', }, 
+    { :command => :'install-packages', }, 
+    { :command => :'install-ruby', }, 
+    { :command => :'install-free-membership-sites', },
+  ],
+});
+
+BlackStack::Deployer::run_routine('node0004', 'install-full-node-on-aws');
 
 =begin
 # setup deploying rutines

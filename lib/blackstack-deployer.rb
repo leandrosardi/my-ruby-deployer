@@ -24,14 +24,14 @@ module BlackStack
 
     # inherit BlackStack::Infrastructure::NodeModule, including features of deployer.
     module NodeModule
-      attr_accessor :deployment_routine
+      attr_accessor :deployment_routine, :parameters
 
       include BlackStack::Infrastructure::NodeModule
 
       # get the IP address for an interface using the ip addr command.
       # this is a helper method for installing cockroachdb nodes.
-      def iip(interface='eth0')
-        a = n.ssh.exec!('ip addr show dev eth0').scan(/inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/)
+      def eth0_ip(interface='eth0')
+        a = self.ssh.exec!('ip addr show dev eth0').scan(/inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/)
         return nil if a.size == 0
         return a.last.to_s.gsub(/inet /, '')
       end
@@ -52,10 +52,11 @@ module BlackStack
         errors.uniq
       end
 
-      def initialize(h)
+      def initialize(h, i_logger=nil)
+        self.parameters = h
         errors = BlackStack::Deployer::NodeModule.descriptor_errors(h)
         raise "The node descriptor is not valid: #{errors.uniq.join(".\n")}" if errors.length > 0
-        super(h)
+        super(h, i_logger)
         self.deployment_routine = h[:deployment_routine]
       end # def self.create(h)
 
@@ -169,8 +170,12 @@ module BlackStack
 
         # if the parameter h[:name] is a symbol
         if c[:command].is_a?(Symbol)
-          # validate: existis a routine with a the value c[:command].to_s on its :name key
-          errors << "The routine with the name #{c[:command].to_s} does not exist" unless BlackStack::Deployer::Routines.select { |r| r[:name] == c[:command].to_s }.size > 0
+          if c[:command] == :reboot
+            # :reboot is a reserved word, so it is fine to call :reboot
+          else
+            # validate: existis a routine with a the value c[:command].to_s on its :name key
+            errors << "The routine with the name #{c[:command].to_s} does not exist" unless BlackStack::Deployer::routines.select { |r| r.name == c[:command].to_s }.size > 0
+          end
         end
 
         # if c[:matches] exists
@@ -246,35 +251,77 @@ module BlackStack
 
       def run(node)
         errors = []
-        if self.sudo
-          if node.ssh_private_key_file.nil?
-            s = "echo '#{node.ssh_password.to_s.gsub("'", "\\'")}' | sudo -S su root -c '#{self.command.to_s.gsub("'", "\\'")}'"
-          else
-            s = "sudo -S su root -c '#{self.command.to_s.gsub("'", "\\'")}'"
-          end
-        else
-          s = self.command.to_s
-        end
-        output = node.ssh.exec!(s)
+        code = self.command
+        output = nil
 
-        # at least one of the matches should happen
-        if self.matches.size > 0
-          i = 0
-          self.matches.each do |m|
-            if m.validate(output).size == 0 # no errors 
-              i += 1
+        # if code is a symbol
+        if code.is_a?(Symbol)
+
+          # if code is equel than :reboot
+          if code == :reboot
+            # call the node reboot method
+            node.reboot
+          else
+            # look for a routine with this name
+            r = BlackStack::Deployer.routines.select { |r| r.name == code.to_s }.first
+            if !r.nil?
+              r.run(node)
+            else
+              raise "The routine #{code.to_s} does not exist"
             end
           end
-          errors << "Command output doesn't match with any of the :matches" if i == 0
-        end # if self.matches.size > 0 
-        
-        # no one of the nomatches should happen
-        self.nomatches.each do |m|
-          errors += m.validate(output)
-        end
+
+        # if code is a string
+        elsif code.is_a?(String)
+          # replacing parameters
+          code.scan(/%[a-zA-Z0-9\_]+%/).each do |p|
+            if p == '%eth0_ip%' # reserved parameter
+              code.gsub!(p, node.eth0_ip)
+            else
+              if node.parameters.has_key?(p.gsub(/%/, '').to_sym)
+                code.gsub!(p, node.parameters[p.gsub(/%/, '').to_sym])
+              else
+                raise "The parameter #{p} does not exist in the node descriptor #{node.parameters.to_s}"
+              end
+            end
+          end
+
+          # running the command
+          if self.sudo
+            # escale the single quotes in the code variable
+            code.gsub!(/'/, "\\\\'")
+
+            if node.ssh_private_key_file.nil?
+              code = "echo '#{node.ssh_password.to_s.gsub("'", "\\\\'")}' | sudo -S su root -c '#{code.to_s}'"
+            else
+              code = "sudo -S su root -c '#{code.to_s}'"
+            end
+          else
+            code = code.to_s
+          end
+          output = node.ssh.exec!(code)
+
+          # validation: at least one of the matches should happen
+          if self.matches.size > 0
+            i = 0
+            self.matches.each do |m|
+              if m.validate(output).size == 0 # no errors 
+                i += 1
+              end
+            end
+            errors << "Command output doesn't match with any of the :matches" if i == 0
+          end # if self.matches.size > 0 
+          
+          # validation: no one of the nomatches should happen
+          self.nomatches.each do |m|
+            errors += m.validate(output)
+          end
+        end # elsif code.is_a?(String)
+
         # return a hash descriptor of the command result 
         {
           :command => self.command,
+          :code => code,
           :output => output,
           :errors => errors,
         }
@@ -391,7 +438,7 @@ module BlackStack
     def self.add_node(h)
       errors = BlackStack::Deployer::NodeModule.descriptor_errors(h)
       raise errors.join(".\n") unless errors.empty?
-      @@nodes << BlackStack::Deployer::Node.new(h)
+      @@nodes << BlackStack::Deployer::Node.new(h, @@logger)
     end # def
 
     # add an array of nodes to the list of nodes.
