@@ -330,6 +330,6 @@ BlackStack::Deployer::DB::enable_checkpoints(true);
 2. [Sequel](https://github.com/jeremyevans/sequel) for simplifying some database tasks;
 3. [Net::SSH](https://github.com/net-ssh/net-ssh) for connecting Linux servers via SSH;
 
-The has been taken from [here](https://www.shareicon.net/space-exploration-transport-rocket-ship-rocket-space-ship-rocket-silhouette-rocket-ship-launch-669455).
+The logo has been taken from [here](https://www.shareicon.net/space-exploration-transport-rocket-ship-rocket-space-ship-rocket-silhouette-rocket-ship-launch-669455).
 
 
