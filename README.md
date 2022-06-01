@@ -326,9 +326,10 @@ BlackStack::Deployer::DB::enable_checkpoints(true);
 
 **BlackStack Deployer** uses
 
-1. [pg](https://rubygems.org/gems/pg/) for connecting PostgreSQL database; 
-2. [Sequel](https://github.com/jeremyevans/sequel) for simplifying some database tasks;
-3. [Net::SSH](https://github.com/net-ssh/net-ssh) for connecting Linux servers via SSH;
+2. [BlackStack Nodes](https://rubygems.org/gems/blackstack-nodes/) for connecting; 
+2. [pg](https://rubygems.org/gems/pg/) for connecting PostgreSQL database; 
+3. [Sequel](https://github.com/jeremyevans/sequel) for simplifying some database tasks;
+4. [Net::SSH](https://github.com/net-ssh/net-ssh) for connecting Linux servers via SSH;
 
 The logo has been taken from [here](https://www.shareicon.net/space-exploration-transport-rocket-ship-rocket-space-ship-rocket-silhouette-rocket-ship-launch-669455).
 
