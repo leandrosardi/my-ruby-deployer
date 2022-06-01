@@ -13,6 +13,21 @@ BlackStack::Deployer.deploy()
 
 **BlackStack Deployer** has been written in Ruby, but it can easily be used to deploy any language.
 
+## Outline
+
+- [1. Getting Started](#1-getting-started)
+- [2. Adding Validations](#2-adding-validations)
+- [3. Defining Node Profiles](#3-defining-node-profiles)
+- [4. Database Installation](#4-database-installation)
+- [5. Running Database Updates](#5-running-database-updates)
+- [6. Reprocessing Database Updates](#6-reprocessing-database-updates)
+- [7. Advanced Features](#7-advanced-features)
+	- [7.1. Requesting node reboot](#71-requesting-node-reboot)
+	- [7.2. Pass routine parameters](#72-pass-routine-parameters)
+	- [7.3. Calling sub-routines](#73-calling-sub-routines)
+	- [7.4. Resuming database deploying from last checkpoint](#74-resuming-database-deploying-from-last-checkpoint)
+- [8. Dependencies](8-dependencies)
+
 ## 1. Getting Started
 
 **Step 1:** Install BlackStack Deployer.

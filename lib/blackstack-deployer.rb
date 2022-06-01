@@ -303,9 +303,9 @@ module BlackStack
           else
             code = code.to_s
           end
-#puts
-#puts code
-#exit(0)
+puts
+puts code
+exit(0)
           output = node.ssh.exec!(code)
 
           # validation: at least one of the matches should happen
@@ -519,7 +519,6 @@ module BlackStack
         
     end # def
       
-=begin
     module DB
       @@remember_checkpoint = false
       @@superhuser = nil
@@ -547,7 +546,6 @@ module BlackStack
       def self.deploy(last_filename_processed=nil)
       end # def
     end # module DB
-=end
 
     # deploying all db-updates and run all routines on all nodes
     def self.deploy()
