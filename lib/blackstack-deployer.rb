@@ -133,8 +133,8 @@ module BlackStack
           h = c.run(node)
           ret << h
 
-          #BlackStack::Deployer.logger.logs "Result: "
-          #BlackStack::Deployer.logger.logf h.to_s
+          BlackStack::Deployer.logger.logs "Result: "
+          BlackStack::Deployer.logger.logf h.to_s
 
           if h[:errors].size == 0
             BlackStack::Deployer.logger.done
@@ -276,15 +276,23 @@ module BlackStack
           # replacing parameters
           code.scan(/%[a-zA-Z0-9\_]+%/).each do |p|
             if p == '%eth0_ip%' # reserved parameter
-              code.gsub!(p, node.eth0_ip)
+              # TODO: move the method eth0_ip to the blackstack-nodes library
+              code.gsub!(p, node.eth0_ip) 
+            elsif p == '%timestamp%' # reserved parameter
+              # TODO: move this to a timestamp function on blackstack-core
+              code.gsub!(p, Time.now.to_s.gsub(/\D/, '')) 
             else
               if node.parameters.has_key?(p.gsub(/%/, '').to_sym)
-                code.gsub!(p, node.parameters[p.gsub(/%/, '').to_sym])
+                code.gsub!(p, node.parameters[p.gsub(/%/, '').to_sym].to_s)
               else
                 raise "The parameter #{p} does not exist in the node descriptor #{node.parameters.to_s}"
               end
             end
           end
+
+puts
+puts code
+exit(0)
 
           # running the command
           if self.sudo

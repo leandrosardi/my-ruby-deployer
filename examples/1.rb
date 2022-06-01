@@ -2,34 +2,9 @@
 
 require_relative '../lib/blackstack-deployer'
 
-# add node to the cluster
 BlackStack::Deployer::add_node({
-    :name => 'node0004',
-    :net_remote_ip => '34.203.199.68',  
-    :ssh_username => 'ubuntu',
-    :ssh_port => 22,
-    :ssh_private_key_file => './plank.pem',
-    :deployment_routine => 'web-servers',
-    #:eth0_ip => 'como cargar un resultado del nodo aqui', # ==> this is a native variable
-    :db_port => 26257,
-    :dashboard_port => 8080,
-})
-
-BlackStack::Deployer::add_node({
-    :name => 'node0005',
-    :net_remote_ip => '18.204.216.148',  
-    :ssh_username => 'ubuntu',
-    :ssh_port => 22,
-    :ssh_private_key_file => './plank.pem',
-    :deployment_routine => 'web-servers',
-    #:eth0_ip => 'como cargar un resultado del nodo aqui', # ==> this is a native variable
-    :db_port => 26257,
-    :dashboard_port => 8080,
-})
-
-BlackStack::Deployer::add_node({
-    :name => 'node0006',
-    :net_remote_ip => '3.85.160.41',  
+    :name => 'node0010',
+    :net_remote_ip => 'ec2-18-208-160-227.compute-1.amazonaws.com',  
     :ssh_username => 'ubuntu',
     :ssh_port => 22,
     :ssh_private_key_file => './plank.pem',
@@ -215,12 +190,23 @@ BlackStack::Deployer::add_routine({
 
 # setup deploying rutines
 BlackStack::Deployer::add_routine({
-  :name => 'install-cockrouch-cluster',
+  :name => 'install-cockroach-cluster',
   :commands => [
     { 
+=begin
+        :command => 'cd ~; mv /usr/local/bin/cockroach /usr/local/bin/cockroach.back.%timestamp%',
+    }, {
+        :command => 'cd ~; mv cockroach-v21.2.10.linux-amd64 cockroach-v21.2.10.linux-amd64.back.%timestamp%',    
+    }, {
         :command => 'curl https://binaries.cockroachdb.com/cockroach-v21.2.10.linux-amd64.tgz | tar -xz && sudo cp -i cockroach-v21.2.10.linux-amd64/cockroach /usr/local/bin/',
+        :sudo => false,
+    }, {
+        :command => 'cd ~; mv /usr/local/lib/cockroach /usr/local/lib/cockroach.back.%timestamp%',
     }, { 
-        :command => 'mkdir -p /usr/local/lib/cockroach',
+        :command => 'mkdir /usr/local/lib/cockroach',
+        :nomatches => [ # no output means success.
+            { :nomatch => /.+/i, :error_description => 'An Error Occurred' },
+        ],
     }, { 
         # reference: https://stackoverflow.com/questions/8488253/how-to-force-cp-to-overwrite-without-confirmation
         :command => 'yes | cp -i cockroach-v21.2.10.linux-amd64/lib/libgeos.so /usr/local/lib/cockroach/',
@@ -230,26 +216,59 @@ BlackStack::Deployer::add_routine({
     }, 
     # TODO: add valdiation `which cockroach`
     { 
+        :command => 'cd ~; mv certs certs.back.%timestamp%',
+    }, { 
+        :command => 'cd ~; mv my-safe-directory my-safe-directory.back.%timestamp%',
+    }, { 
         :command => 'cd ~; mkdir certs',
-    },
-    { 
+    }, { 
         :command => 'cd ~; mkdir my-safe-directory',
-    },
-    { 
+    }, { 
         :command => 'cd ~; cockroach cert create-ca --certs-dir=certs --ca-key=my-safe-directory/ca.key',
-    },
-    { 
+        :nomatches => [ # no output means success.
+            { :nomatch => /.+/i, :error_description => 'An Error Occurred' },
+        ],
+    }, { 
         :command => 'cd ~; cockroach cert create-node localhost %eth0_ip% $(hostname) --certs-dir certs --ca-key my-safe-directory/ca.key',
-    },
-    { 
-        :command => 'cd ~; cockroach cert create-client root --certs-dir=certs --ca-key=my-safe-directory/ca.key',
-    },
-    { 
-        :command => 'cd ~; cockroach start --certs-dir=certs --store=node0004 --listen-addr=%eth0_ip%:%db_port% --http-addr=%eth0_ip%:%dashboard_port% --join=%eth0_ip%:%db_port% --background --max-sql-memory=.25 --cache=.25',
-    },
-    { 
+        :nomatches => [ # no output means success.
+            { :nomatch => /.+/i, :error_description => 'An Error Occurred' },
+        ],
+    }, { 
+        :command => 'cd ~; cockroach cert create-client %ssh_username% --certs-dir=certs --ca-key=my-safe-directory/ca.key',
+        :nomatches => [ # no output means success.
+            { :nomatch => /.+/i, :error_description => 'An Error Occurred' },
+        ],
+    }, { 
+        :command => 'cd ~; cockroach start --certs-dir=certs --store=%name% --listen-addr=%eth0_ip%:%db_port% --http-addr=%eth0_ip%:%dashboard_port% --join=%eth0_ip%:%db_port% --background --max-sql-memory=.25 --cache=.25',
+        :matches => /INFO: initial startup completed/
+    }, { 
         :command => 'cd ~; cockroach init --host=%eth0_ip%:%db_port% --certs-dir=certs',
+=end
+        :sudo => false,
+        :command => '
+sudo su;
+cd ~; 
+sudo mv /usr/local/bin/cockroach /usr/local/bin/cockroach.back.%timestamp%;
+sudo mv cockroach-v21.2.10.linux-amd64 cockroach-v21.2.10.linux-amd64.back.%timestamp%;
+curl https://binaries.cockroachdb.com/cockroach-v21.2.10.linux-amd64.tgz | tar -xz && sudo cp -i cockroach-v21.2.10.linux-amd64/cockroach /usr/local/bin/;
+sudo mv /usr/local/lib/cockroach /usr/local/lib/cockroach.back.%timestamp%;
+mkdir /usr/local/lib/cockroach;
+yes | sudo cp -i cockroach-v21.2.10.linux-amd64/lib/libgeos.so /usr/local/lib/cockroach/;
+yes | sudo cp -i cockroach-v21.2.10.linux-amd64/lib/libgeos_c.so /usr/local/lib/cockroach/;
+sudo mv certs certs.back.%timestamp%;
+sudo mv my-safe-directory my-safe-directory.back.%timestamp%;
+sudo mkdir certs;
+sudo mkdir my-safe-directory;
+sudo cockroach cert create-ca --certs-dir=certs --ca-key=my-safe-directory/ca.key;
+sudo cockroach cert create-node localhost %eth0_ip% $(hostname) --certs-dir certs --ca-key my-safe-directory/ca.key;
+sudo cockroach cert create-client %ssh_username% --certs-dir=certs --ca-key=my-safe-directory/ca.key;
+sudo cockroach start --certs-dir=certs --store=%name% --listen-addr=%eth0_ip%:%db_port% --http-addr=%eth0_ip%:%dashboard_port% --join=%eth0_ip%:%db_port% --background --max-sql-memory=.25 --cache=.25;
+sudo cockroach init --host=%eth0_ip%:%db_port% --certs-dir=certs;
+        ',
+
     },
+
+
     # TODO: connect the cockroach cluster, create database and user and grants.
     #cd ~;cockroach sql --host 34.203.199.68 --certs-dir certs -e "CREATE USER IF NOT EXISTS %ssh_username% WITH PASSWORD 'bsws2022';"
   ],
@@ -260,15 +279,16 @@ BlackStack::Deployer::add_routine({
 BlackStack::Deployer::add_routine({
   :name => 'install-full-node-on-aws-on-ubuntu-20-04',
   :commands => [
-    { :command => :'change-hostname', }, 
-    { :command => :'upgrade-packages', }, 
-    { :command => :'install-packages', }, 
-    { :command => :'install-ruby', }, 
-    { :command => :'install-free-membership-sites', },
+#    { :command => :'change-hostname', }, 
+#    { :command => :'upgrade-packages', }, 
+#    { :command => :'install-packages', }, 
+#    { :command => :'install-ruby', }, 
+#    { :command => :'install-free-membership-sites', },
+    { :command => :'install-cockroach-cluster', },
   ],
 });
 
-BlackStack::Deployer::run_routine('node0006', 'install-full-node-on-aws-on-ubuntu-20-04');
+BlackStack::Deployer::run_routine('node0010', 'install-full-node-on-aws-on-ubuntu-20-04');
 
 =begin
 # setup deploying rutines
