@@ -1,4 +1,5 @@
 require 'blackstack-nodes'
+require 'sequel'
 
 module BlackStack
   # Deployer is a library that can be used to deploy a cluster of nodes.
@@ -520,21 +521,88 @@ module BlackStack
     end # def
       
     module DB
-      @@remember_checkpoint = false
+      @@checkpoint = nil
       @@superhuser = nil
-      @@new_db = nil
+      @@ndb = nil
       @@folder = nil
 
-      def self.enable_checkpoints(b)
+      def self.set_checkpoint(s)
+        @@checkpoint = s
       end
     
-      def self.connect_db(s)
+      def self.connect(s)
+        @@db = Sequel::connect(s)
       end # def
     
       def self.set_folder(s)
+        @@folder = s
       end # def
-    
-      def self.deploy(last_filename_processed=nil)
+
+
+      # Return `true` if the name of the file matches with `/\.transactions\./`, and it doesn't match with `/\.sentences\./`, and the matches with `/\.transactions\./` are no more than one.
+      # Otherwise, return `false`.
+      # This method should not be called directly by user code.
+      def self.is_transactions_file?(filename)
+        filename =~ /\.transactions\./ && filename !~ /\.sentences\./ && filename.scan(/\.transactions\./).size == 1
+      end
+  
+      # Return `true` if the name of the file matches with `/\.sentences\./`, and it doesn't match with `/\.transactions\./`, and the matches with `/\.sentences\./` are no more than one.
+      # Otherwise({, return `false`.
+      # This method should not be called directly by user code.
+      def self.is_sentences_file?(filename)
+        filename =~ /\.sentences\./ && filename !~ /\.transactions\./ && filename.scan(/\.sentences\./).size == 1
+      end
+
+      # Method to process an `.sql` file with transactions code, separated by `BEGIN;` and `COMMIT;` statements.
+      # Reference: https://stackoverflow.com/questions/64066344/import-large-sql-files-with-ruby-sequel-gem
+      # This method is called by `BlackStack::Deployer::db_execute_file` if the filename matches with `/\.tsql\./`. 
+      # This method should not be called directly by user code.
+      def self.execute_transactions(sql)  
+        # TODO: Code Me!
+      end # def db_execute_tsql
+      
+      # Method to process an `.sql` file with one sql sentence by line.
+      # Reference: https://stackoverflow.com/questions/64066344/import-large-sql-files-with-ruby-sequel-gem
+      # This method is called by `BlackStack::Deployer::db_execute_file` if the filename matches with `/\.sentences\./`. 
+      # This method should not be called directly by user code.
+      def self.execute_sentences(sql)      
+        tlogger = BlackStack::Deployer::logger
+
+        # Fix issue: Ruby `split': invalid byte sequence in UTF-8 (ArgumentError)
+        # Reference: https://stackoverflow.com/questions/11065962/ruby-split-invalid-byte-sequence-in-utf-8-argumenterror
+        sql.encode!('UTF-8', :invalid => :replace)
+
+        # Keeping only ASCII characters
+        # Ruby: https://programming-idioms.org/idiom/147/remove-all-non-ascii-characters/1903/ruby
+        sql.split(/;/i).each { |statement|
+          statement = statement.to_s.strip
+          tlogger.logs "#{statement.split("\n").first}... "
+          begin
+            @@db.execute(statement) #if statement.to_s.strip.size > 0
+            tlogger.done
+          rescue => e
+            tlogger.logf e.to_s 
+            raise "Error executing statement: #{statement}\n#{e.message}"
+          end
+        }
+        tlogger.done
+      end # def db_execute_sql_sentences_file
+
+      # Run a series of `.sql` files with updates to the database.
+      #
+      def self.deploy()
+        tlogger = BlackStack::Deployer::logger
+        # get list of `.sql` files in the directory `sql_path`, with a name higher than `last_filename`, sorted by name.
+        Dir.entries(@@folder).select { 
+          |f| f =~ /\.sql$/ && f > @@checkpoint.to_s
+        }.uniq.sort.each { |filename|
+          fullfilename = "#{@@folder}/#{filename}"
+#puts fullfilename
+#puts File.open(fullfilename).read
+          tlogger.logs "#{fullfilename}... "
+          BlackStack::Deployer::DB::execute_sentences( File.open(fullfilename).read )
+          tlogger.done
+        }
       end # def
     end # module DB
 
