@@ -40,7 +40,7 @@ module BlackStack
         errors = BlackStack::Infrastructure::NodeModule.descriptor_errors(h)
  
         # validate: does not exist any other element in @@nodes with the same value for the parameter h[:name]
-        errors << "The parameter h[:name] is not unique" if BlackStack::Deployer.nodes.select{|n| n[:name] == h[:name]}.length > 0 
+        errors << "The parameter h[:name] is not unique" if BlackStack::Deployer.nodes.select{|n| n.name == h[:name]}.length > 0 
 
         # validate: h[:deployment_routine] is not nil
         errors << "The parameter h[:deployment_routine] is required" if h[:deployment_routine].nil?

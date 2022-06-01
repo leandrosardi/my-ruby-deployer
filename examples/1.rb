@@ -15,6 +15,31 @@ BlackStack::Deployer::add_node({
     :dashboard_port => 8080,
 })
 
+BlackStack::Deployer::add_node({
+    :name => 'node0005',
+    :net_remote_ip => '18.204.216.148',  
+    :ssh_username => 'ubuntu',
+    :ssh_port => 22,
+    :ssh_private_key_file => './plank.pem',
+    :deployment_routine => 'web-servers',
+    #:eth0_ip => 'como cargar un resultado del nodo aqui', # ==> this is a native variable
+    :db_port => 26257,
+    :dashboard_port => 8080,
+})
+
+BlackStack::Deployer::add_node({
+    :name => 'node0006',
+    :net_remote_ip => '3.85.160.41',  
+    :ssh_username => 'ubuntu',
+    :ssh_port => 22,
+    :ssh_private_key_file => './plank.pem',
+    :deployment_routine => 'web-servers',
+    #:eth0_ip => 'como cargar un resultado del nodo aqui', # ==> this is a native variable
+    :db_port => 26257,
+    :dashboard_port => 8080,
+})
+
+
 # change hostname
 BlackStack::Deployer::add_routine({
   :name => 'change-hostname',
@@ -135,15 +160,17 @@ BlackStack::Deployer::add_routine({
         :sudo => false,
     }, { 
         # reference: https://askubuntu.com/questions/504546/error-message-source-not-found-when-running-a-script
-        :command => "source /home/blackstack/.rvm/scripts/rvm; rvm install 3.1.2; rvm --default use 3.1.2;", 
-        :matches => [ /Already installed/i,  /installed/i ],
+        :command => "source /home/%ssh_username%/.rvm/scripts/rvm; rvm install 3.1.2; rvm --default use 3.1.2;", 
+        :matches => [ /Already installed/i,  /installed/i, /generating default wrappers/i ],
         :sudo => false,    
-# TODO: Add validatin the ruby 3.1.2 has been installed for the user blackstack.
+
+    # TODO: Add validation the ruby 3.1.2 has been installed for the user %ssh_username%.
+
 =begin
-# bundler already installed
+    # bundler already installed with Ruby 3.1.2
     }, { 
         # reference: https://askubuntu.com/questions/504546/error-message-source-not-found-when-running-a-script
-        :command => "echo 'SantaClara123' | sudo -S su blackstack -c '#!/bin/bash; gem install bundler -v '2.3.7';'", 
+        :command => "echo 'SantaClara123' | sudo -S su %ssh_username% -c '#!/bin/bash; gem install bundler -v '2.3.7';'", 
         :nomatches => [ # no output means success.
             { :nomatch => /.+/i, :error_description => 'An Error Occurred' },
         ],
@@ -164,6 +191,8 @@ BlackStack::Deployer::add_routine({
     }, { 
         :command => 'cd ~/code; git clone https://github.com/leandrosardi/free-membership-sites',
         :matches => [ 
+            /already exists and is not an empty directory/i,
+            /Cloning into/i,
             /Resolving deltas\: 100\% \((\d)+\/(\d)+\), done\./i,
             /fatal\: destination path \'free-membership-sites\' already exists and is not an empty directory\./i,
         ],
@@ -172,17 +201,12 @@ BlackStack::Deployer::add_routine({
         ],
         :sudo => false,
     }, { 
-        # TODO: I can't understand why I have to do #!/bin/bash;  in order to don't get error "bundler command not found".
-        # Instead, I am getting no output because I am running with #!/bin/bash.
-        :command => '#!/bin/bash; cd ~/code/free-membership-sites; rvm --default use 3.1.2; bundler update',
-=begin
+        :command => 'source /home/%ssh_username%/.rvm/scripts/rvm; cd ~/code/free-membership-sites; rvm install 3.1.2; rvm --default use 3.1.2; bundler update',
         :matches => [ 
-            /Resolving deltas\: 100\% \((\d)+\/(\d)+\), done\./i,
-            /fatal\: destination path \'free-membership-sites\' already exists and is not an empty directory\./i,
+            /Bundle updated\!/i,
         ],
-=end
-        :nomatches => [ # no output means success.
-            { :nomatch => /.+/i, :error_description => 'An Error Occurred' },
+        :nomatches => [ 
+            { :nomatch => /not found/i, :error_description => 'An Error Occurred' },
         ],
         :sudo => false,
     },
@@ -227,14 +251,14 @@ BlackStack::Deployer::add_routine({
         :command => 'cd ~; cockroach init --host=%eth0_ip%:%db_port% --certs-dir=certs',
     },
     # TODO: connect the cockroach cluster, create database and user and grants.
-    #cd ~;cockroach sql --host 34.203.199.68 --certs-dir certs -e "CREATE USER IF NOT EXISTS blackstack WITH PASSWORD 'bsws2022';"
+    #cd ~;cockroach sql --host 34.203.199.68 --certs-dir certs -e "CREATE USER IF NOT EXISTS %ssh_username% WITH PASSWORD 'bsws2022';"
   ],
 });
 
 
 # setup deploying rutines
 BlackStack::Deployer::add_routine({
-  :name => 'install-full-node-on-aws',
+  :name => 'install-full-node-on-aws-on-ubuntu-20-04',
   :commands => [
     { :command => :'change-hostname', }, 
     { :command => :'upgrade-packages', }, 
@@ -244,7 +268,7 @@ BlackStack::Deployer::add_routine({
   ],
 });
 
-BlackStack::Deployer::run_routine('node0004', 'install-full-node-on-aws');
+BlackStack::Deployer::run_routine('node0006', 'install-full-node-on-aws-on-ubuntu-20-04');
 
 =begin
 # setup deploying rutines
