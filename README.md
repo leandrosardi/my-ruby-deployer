@@ -25,7 +25,7 @@ BlackStack::Deployer.deploy()
 	- [6.2. Pass routine parameters](#62-pass-routine-parameters)
 	- [6.3. Calling sub-routines](#63-calling-sub-routines)
 	- [6.4. Resuming database deploying from last checkpoint](#64-resuming-database-deploying-from-last-checkpoint)
-- [7. Dependencies](7-dependencies)
+- [7. Dependencies](#7-dependencies)
 
 ## 1. Getting Started
 
