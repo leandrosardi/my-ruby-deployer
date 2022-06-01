@@ -527,17 +527,8 @@ module BlackStack
 
       def self.enable_checkpoints(b)
       end
-
-      def self.set_superuser(h)
-      end # def
     
-      def self.set_new_db(h)
-      end # def
-    
-      def self.create
-      end # def
-    
-      def self.connect_new_db(s)
+      def self.connect_db(s)
       end # def
     
       def self.set_folder(s)

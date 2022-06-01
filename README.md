@@ -18,15 +18,14 @@ BlackStack::Deployer.deploy()
 - [1. Getting Started](#1-getting-started)
 - [2. Adding Validations](#2-adding-validations)
 - [3. Defining Node Profiles](#3-defining-node-profiles)
-- [4. Database Installation](#4-database-installation)
-- [5. Running Database Updates](#5-running-database-updates)
-- [6. Reprocessing Database Updates](#6-reprocessing-database-updates)
-- [7. Advanced Features](#7-advanced-features)
-	- [7.1. Requesting node reboot](#71-requesting-node-reboot)
-	- [7.2. Pass routine parameters](#72-pass-routine-parameters)
-	- [7.3. Calling sub-routines](#73-calling-sub-routines)
-	- [7.4. Resuming database deploying from last checkpoint](#74-resuming-database-deploying-from-last-checkpoint)
-- [8. Dependencies](8-dependencies)
+- [4. Running Database Updates](#4-running-database-updates)
+- [5. Reprocessing Database Updates](#5-reprocessing-database-updates)
+- [6. Advanced Features](#6-advanced-features)
+	- [6.1. Requesting node reboot](#61-requesting-node-reboot)
+	- [6.2. Pass routine parameters](#62-pass-routine-parameters)
+	- [6.3. Calling sub-routines](#63-calling-sub-routines)
+	- [6.4. Resuming database deploying from last checkpoint](#64-resuming-database-deploying-from-last-checkpoint)
+- [7. Dependencies](7-dependencies)
 
 ## 1. Getting Started
 
@@ -152,53 +151,7 @@ BBlackStack::Deployer::set_nodes([{
 BBlackStack::Deployer::deploy()
 ```
 
-## 4. Database Installation
-
-**Database Installation** is about creating a new database on your server.
-
-**Important:** This is the only feature that is compatible with PostgreSQL and only with PostgreSQL.
-If you are running with  other RDBMS, you should perform this database cration manually.
-
-**Step 1:** Setup Database Connection with All Grants.
-
-This connection is required to create 
-
-1. the new database;
-2. the new user to access the new database; and
-3. grant the new user to read and write on the new database.
-
-```ruby
-# DB ACCESS - KEEP IT SECRET
-BlackStack::Deployer::DB::set_superuser ({
-  :db_url => 'db.mydomain.com',
-  :db_port => '5432',
-  :db_name => 'any-master-database',
-  :db_user => 'superadmin-username',
-  :db_password => 'superadmin-password',
-})
-```
-
-If you are running on PostgreSQL, `:db_port` use to be `5432`, `:db_name` use to be `'postgres'` and `:db_user` use to be `'postgres'` too.
-
-**Step 2:** Setup the Parameters of the New Database.
-
-```ruby
-# DB ACCESS - KEEP IT SECRET
-BlackStack::Deployer::DB::set_new_db ({
-  :db_name => 'blackstack',
-  :db_user => 'blackstack',
-  :db_password => 'bsws2022',
-})
-```
-
-**Step 3:** Create the new database.
-
-```ruby
-BlackStack::Deployer::DB::create
-# => true
-```
-
-## 5. Running Database Updates
+## 4. Running Database Updates
 
 This feature works with any RDBMS supported by [Sequel](https://sequel.jeremyevans.net/).
 
@@ -265,7 +218,7 @@ BlackStack::Deployer::DB::deploy();
 
 Files will be sorted by name, and processed following such an order.
 
-## 6. Reprocessing Database Updates
+## 5. Reprocessing Database Updates
 
 It is a good practice that any `.sql` file can be reprocessed without raising any exception.
 
@@ -287,11 +240,11 @@ INSERT INTO country (id, code, name)
 VALUES ('1fde0820-ae46-4687-ab4b-d8196f6e5bd0', 'ar', 'Argentina') ON CONFLICT DO NOTHING;
 ```
 
-## 7. Advanced Features
+## 6. Advanced Features
 
 There are some advanced features that make **blackstack-deployer** more versatile.
 
-### 7.1. Requesting node reboot 
+### 6.1. Requesting node reboot 
 
 You can request node reboot as part of a routine. 
 
@@ -306,7 +259,7 @@ BBlackStack::Deployer::add_routines([{
 }]);
 ```
 
-### 7.2. Pass routine parameters
+### 6.2. Pass routine parameters
 
 Your can define parameters parameters between `%` chars, as is shown in the code below.
 
@@ -334,7 +287,7 @@ BBlackStack::Deployer::add_nodes([{
 }])
 ```
 
-### 7.3. Calling sub-routines
+### 6.3. Calling sub-routines
 
 You can request the execution of a routine as part of a bigger routine. 
 
@@ -349,7 +302,7 @@ BBlackStack::Deployer::add_routines([{
 }]);
 ```
 
-### 7.4. Resuming database deploying from last checkpoint
+### 6.4. Resuming database deploying from last checkpoint
 
 Usually, the first files in the `sql` folder are regrding the creation of the schema and the seed records.
 
@@ -369,7 +322,7 @@ BlackStack::Deployer::DB::enable_checkpoints(true);
 # => true
 ```
 
-## 8. Dependencies
+## 7. Dependencies
 
 **BlackStack Deployer** uses
 
