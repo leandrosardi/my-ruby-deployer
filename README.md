@@ -57,12 +57,12 @@ BBlackStack::Deployer::set_nodes([{
 Instead of defining the `ssh_username` and `ssh_password`, you can setup either `.pem` or `.ppk` private key files.
 
 ```ruby
-BBlackStack::Deployer::add_node(
+BBlackStack::Deployer::add_node({
   :name => 'node1',
   :net_remote_ip => 'db.mydomain.com', 
   :ssh_username => 'username',
   :ssh_private_key_file => '~/certs/db.pem', 
-)
+})
 ``` 
 
 **Step 3:** Setup deployment routines.
@@ -102,7 +102,7 @@ You can also look for a list of well known error messages, listed in the `:nomat
 
 ```ruby
 # setup deploying rutines for different kind of servers.
-BBlackStack::Deployer::add_routine(
+BBlackStack::Deployer::add_routine({
     # download the latest version of source code
     :name => 'restart-webserver',
     # run additional bash commands, and validate outputs.
@@ -122,7 +122,7 @@ BBlackStack::Deployer::add_routine(
         ]
       },
     ],
-);
+});
 ```
 
 ## 3. Defining Node Profiles

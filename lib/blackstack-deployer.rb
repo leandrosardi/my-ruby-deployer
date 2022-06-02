@@ -66,6 +66,10 @@ module BlackStack
         h[:deployment_routine] = self.deployment_routine
         h
       end # def to_hash
+
+      def deploy()
+        BlackStack::Deployer::run_routine(self.name, self.deployment_routine);
+      end
     end # module NodeModule
 
     # define attributes and methods of a deployer routine
@@ -292,22 +296,7 @@ module BlackStack
           end
 
           # running the command
-          if self.sudo
-            # escale the single quotes in the code variable
-            code.gsub!(/'/, "\\\\'")
-
-            if node.ssh_private_key_file.nil?
-              code = "echo '#{node.ssh_password.to_s.gsub("'", "\\\\'")}' | sudo -S su root -c '#{code.to_s}'"
-            else
-              code = "sudo -S su root -c '#{code.to_s}'"
-            end
-          else
-            code = code.to_s
-          end
-#puts
-#puts code
-#exit(0)
-          output = node.ssh.exec!(code)
+          output = node.exec(code, self.sudo)
 
           # validation: at least one of the matches should happen
           if self.matches.size > 0
@@ -594,13 +583,16 @@ module BlackStack
         tlogger = BlackStack::Deployer::logger
         # get list of `.sql` files in the directory `sql_path`, with a name higher than `last_filename`, sorted by name.
         Dir.entries(@@folder).select { 
-          |f| f =~ /\.sql$/ && f > @@checkpoint.to_s
+          |filename| filename =~ /\.sql$/ && filename > @@checkpoint.to_s
         }.uniq.sort.each { |filename|
           fullfilename = "#{@@folder}/#{filename}"
-#puts fullfilename
-#puts File.open(fullfilename).read
+
           tlogger.logs "#{fullfilename}... "
           BlackStack::Deployer::DB::execute_sentences( File.open(fullfilename).read )
+          tlogger.done
+
+          tlogger.logs "Updating checkpoint... "
+          @@checkpoint = filename
           tlogger.done
         }
       end # def
@@ -608,7 +600,13 @@ module BlackStack
 
     # deploying all db-updates and run all routines on all nodes
     def self.deploy()
-      # TODO: Code Me!
+      tlogger = BlackStack::Deployer::logger
+
+      @@nodes.each { |n|
+        tlogger.logs "Node #{n.name}... "
+        n.deploy()
+        tlogger.done
+      }
     end # def
 
   end # module Deployer
