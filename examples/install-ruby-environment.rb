@@ -25,7 +25,7 @@ BlackStack::Deployer::add_nodes([{
 
     :deployment_routine => 'install-ruby-environment',
     #:eth0_ip => 'como cargar un resultado del nodo aqui', # ==> this is a native parameter
-    :db_port => 26257,
+    :crdb_database_port => 26257,
     :dashboard_port => 8080,
 }])
 

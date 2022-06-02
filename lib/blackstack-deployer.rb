@@ -1,4 +1,6 @@
-require 'blackstack-nodes'
+#require 'blackstack-nodes'
+require_relative '../../blackstack-nodes/lib/blackstack-nodes'
+
 require 'sequel'
 
 module BlackStack
@@ -138,8 +140,8 @@ module BlackStack
           h = c.run(node)
           ret << h
 
-          BlackStack::Deployer.logger.logs "Result: "
-          BlackStack::Deployer.logger.logf h.to_s
+          #BlackStack::Deployer.logger.logs "Result: "
+          #BlackStack::Deployer.logger.logf h.to_s
 
           if h[:errors].size == 0
             BlackStack::Deployer.logger.done
@@ -295,9 +297,16 @@ module BlackStack
             end
           end
 
+puts
+puts
+puts code
+#exit(0)
+puts
+puts "SUDO: #{self.sudo}"
           # running the command
           output = node.exec(code, self.sudo)
-
+puts
+puts '1'
           # validation: at least one of the matches should happen
           if self.matches.size > 0
             i = 0
