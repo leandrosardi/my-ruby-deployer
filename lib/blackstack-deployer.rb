@@ -297,16 +297,16 @@ module BlackStack
             end
           end
 
-puts
-puts
-puts code
+#puts
+#puts
+#puts code
 #exit(0)
-puts
-puts "SUDO: #{self.sudo}"
+#puts
+#puts "SUDO: #{self.sudo}"
           # running the command
           output = node.exec(code, self.sudo)
-puts
-puts '1'
+#puts
+#puts '1'
           # validation: at least one of the matches should happen
           if self.matches.size > 0
             i = 0
