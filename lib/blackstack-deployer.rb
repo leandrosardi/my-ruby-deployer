@@ -10,6 +10,11 @@ module BlackStack
     @@nodes = []
     @@routines = []
 
+    # set the logger
+    def self.set_logger(i_logger)
+      @@logger = i_logger
+    end
+
     # get the logger assigned to the module
     def self.logger
       @@logger
