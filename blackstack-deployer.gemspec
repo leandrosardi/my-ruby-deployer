@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name        = 'blackstack-deployer'
-  s.version     = '1.2.9'
+  s.version     = '1.2.10'
   s.date        = '2022-06-04'
   s.summary     = "BlackStack Deployer is a deployment automation tool built on Ruby and SSH."
   s.description = "BlackStack Deployer automates what you already know how to do manually, but in a repeatable, scalable fashion. There is no magic here!
