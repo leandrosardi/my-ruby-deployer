@@ -5,7 +5,7 @@ BlackStack::Deployer::add_routine({
     {
         :sudo=> true,
         # CRDB is not supporting the restarting of a working node, and it fails after that. 
-        # Reference: https://github.com/leandrosardi/free-membership-sites/issues/3#issuecomment-1145029801
+        # Reference: https://github.com/leandrosardi/mysaas/issues/3#issuecomment-1145029801
         :command => :reboot, 
     }, {
         :sudo=> true,

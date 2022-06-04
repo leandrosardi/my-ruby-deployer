@@ -1,5 +1,5 @@
 #require 'blackstack-nodes'
-require_relative '../../blackstack-nodes/lib/blackstack-nodes'
+require'blackstack-nodes'
 
 require 'sequel'
 
@@ -568,18 +568,36 @@ module BlackStack
       # Reference: https://stackoverflow.com/questions/64066344/import-large-sql-files-with-ruby-sequel-gem
       # This method is called by `BlackStack::Deployer::db_execute_file` if the filename matches with `/\.sentences\./`. 
       # This method should not be called directly by user code.
-      def self.execute_sentences(sql)      
+      def self.execute_sentences(sql, chunk_size=200)      
         tlogger = BlackStack::Deployer::logger
 
         # Fix issue: Ruby `split': invalid byte sequence in UTF-8 (ArgumentError)
         # Reference: https://stackoverflow.com/questions/11065962/ruby-split-invalid-byte-sequence-in-utf-8-argumenterror
-        sql.encode!('UTF-8', :invalid => :replace)
+        #
+        # Fix issue: `PG::SyntaxError: ERROR:  at or near "��truncate": syntax error`
+        #
+        sql.encode!('UTF-8', :invalid => :replace, :replace => '')
 
-        # Keeping only ASCII characters
-        # Ruby: https://programming-idioms.org/idiom/147/remove-all-non-ascii-characters/1903/ruby
-        sql.split(/;/i).each { |statement|
-          statement = statement.to_s.strip
-          tlogger.logs "#{statement.split("\n").first}... "
+        # Remove null bytes to avoid error: `String contains null byte`
+        # Reference: https://stackoverflow.com/questions/29320369/coping-with-string-contains-null-byte-sent-from-users
+        sql.gsub!("\u0000", "")
+
+        # Get the array of sentences
+        tlogger.logs "Splitting the sql sentences... "
+        sentences = sql.split(/;/i) 
+        tlogger.logf "done (#{sentences.size})"
+
+        # Chunk the array into parts of chunk_size elements
+        # Reference: https://stackoverflow.com/questions/2699584/how-to-split-chunk-a-ruby-array-into-parts-of-x-elements
+        tlogger.logs "Bunlding the array of sentences into chunks of #{chunk_size} each... "
+        chunks = sentences.each_slice(chunk_size).to_a
+        tlogger.logf "done (#{chunks.size})"
+
+        chunk_number = -1
+        chunks.each { |chunk|
+          chunk_number += 1
+          statement = chunk.join(";\n").to_s.strip
+          tlogger.logs "lines #{chunk_size*chunk_number+1} to #{chunk_size*chunk_number+chunk.size} of #{sentences.size}... "
           begin
             @@db.execute(statement) #if statement.to_s.strip.size > 0
             tlogger.done

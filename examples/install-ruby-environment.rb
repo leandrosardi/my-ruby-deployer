@@ -20,8 +20,8 @@ BlackStack::Deployer::add_nodes([{
     :password => 'blackstack',
 
     # git project
-    :git_project_url => 'https://github.com/leandrosardi/free-membership-sites',
-    :git_project_name => 'free-membership-sites',
+    :git_project_url => 'https://github.com/leandrosardi/mysaas',
+    :git_project_name => 'mysaas',
 
     :deployment_routine => 'install-ruby-environment',
     #:eth0_ip => 'como cargar un resultado del nodo aqui', # ==> this is a native parameter
