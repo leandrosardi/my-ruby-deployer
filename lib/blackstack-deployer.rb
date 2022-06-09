@@ -34,12 +34,28 @@ module BlackStack
 
       include BlackStack::Infrastructure::NodeModule
 
+      def self.eth0_ip(insterface)
+        ret = nil
+        a = `ip addr show dev #{insterface}`.scan(/inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/)
+        if a.size > 0
+          ret = a.last.to_s.gsub(/inet /, '')           
+        else
+          raise "Cannot get ip address of the interface #{insterface}"
+        end
+        ret
+      end
+
       # get the IP address for an interface using the ip addr command.
       # this is a helper method for installing cockroachdb nodes.
-      def eth0_ip(interface='eth0')
-        a = self.ssh.exec!('ip addr show dev eth0').scan(/inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/)
-        return nil if a.size == 0
-        return a.last.to_s.gsub(/inet /, '')
+      def eth0_ip()
+        ret = nil
+        a = self.ssh.exec!("ip addr show dev #{parameters[:laninterface]}").scan(/inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/)
+        if a.size > 0
+          ret = a.last.to_s.gsub(/inet /, '')           
+        else
+          raise "Cannot get ip address of the interface #{parameters[:laninterface]}"
+        end
+        ret
       end
 
       def self.descriptor_errors(h)
@@ -300,16 +316,9 @@ module BlackStack
             end
           end
 
-#puts
-#puts
-#puts code
-#exit(0)
-#puts
-#puts "SUDO: #{self.sudo}"
           # running the command
           output = node.exec(code, self.sudo)
-#puts
-#puts '1'
+
           # validation: at least one of the matches should happen
           if self.matches.size > 0
             i = 0
