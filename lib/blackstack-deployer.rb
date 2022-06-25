@@ -545,13 +545,13 @@ module BlackStack
         @@checkpoint
       end
 
-      def self.save_checkpoint
-        File.new('./blackstack-deployer.lock', "w").write(@@checkpoint)
+      def self.save_checkpoint(lockfilename=BlackStack::Deployer::DB::LOCKFILE)
+        File.new(lockfilename, "w").write(@@checkpoint)
       end
 
-      def self.load_checkpoint
-        if File.exists?(BlackStack::Deployer::DB::LOCKFILE)
-          @@checkpoint = File.new(BlackStack::Deployer::DB::LOCKFILE, "r").read
+      def self.load_checkpoint(lockfilename=BlackStack::Deployer::DB::LOCKFILE)
+        if File.exists?(lockfilename)
+          @@checkpoint = File.new(lockfilename, "r").read
         else
           @@checkpoint = nil
         end
@@ -636,7 +636,7 @@ module BlackStack
 
       # Run a series of `.sql` files with updates to the database.
       #
-      def self.deploy(save_checkpoints=false)
+      def self.deploy(save_checkpoints=false, lockfilename=BlackStack::Deployer::DB::LOCKFILE)
         tlogger = BlackStack::Deployer::logger
         # get list of `.sql` files in the directory `sql_path`, with a name higher than `last_filename`, sorted by name.
         Dir.entries(@@folder).select { 
@@ -654,7 +654,7 @@ module BlackStack
 
           tlogger.logs 'Saving checkpoint... '
           if save_checkpoints
-            BlackStack::Deployer::DB::save_checkpoint
+            BlackStack::Deployer::DB::save_checkpoint(lockfilename)
             tlogger.done
           else
             tlogger.logf 'disabled'
