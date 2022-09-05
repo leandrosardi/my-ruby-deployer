@@ -5,12 +5,23 @@ module BlackStack
   # Deployer is a library that can be used to deploy a cluster of nodes.
   module Deployer
     @@logger = BlackStack::BaseLogger.new(nil)
+    @@show_output = false
     @@nodes = []
     @@routines = []
+
+    # set show_output
+    def self.set_show_output(value)
+      @@show_output = value
+    end
 
     # set the logger
     def self.set_logger(i_logger)
       @@logger = i_logger
+    end
+
+    # get show_output
+    def self.show_output
+      @@show_output
     end
 
     # get the logger assigned to the module
@@ -155,7 +166,7 @@ module BlackStack
       def run(node)
         ret = []
         self.commands.each do |c|
-          BlackStack::Deployer.logger.logs "Running command: #{c.command.to_s}... "
+          #BlackStack::Deployer.logger.logs "Running command: #{c.command.to_s}... "
           h = c.run(node)
           ret << h
 
@@ -163,10 +174,10 @@ module BlackStack
           #BlackStack::Deployer.logger.logf h.to_s
 
           if h[:errors].size == 0
-            BlackStack::Deployer.logger.done
+            #BlackStack::Deployer.logger.done
           else
-            BlackStack::Deployer.logger.logf('error: ' + h.to_s)
-            raise "Error running command: #{h.to_s}"
+            #BlackStack::Deployer.logger.logf('error: ' + h.to_s)
+            raise "Error running command:\n#{h[:errors].uniq.join("\n")}"
           end
         end
         ret
@@ -175,7 +186,7 @@ module BlackStack
 
     # define attributes and methods of a routine's command
     module CommandModule
-      attr_accessor :command, :matches, :nomatches, :sudo
+      attr_accessor :command, :matches, :nomatches, :sudo, :background
 
       def self.descriptor_errors(c)
         errors = []
@@ -200,7 +211,7 @@ module BlackStack
             # :reboot is a reserved word, so it is fine to call :reboot
           else
             # validate: existis a routine with a the value c[:command].to_s on its :name key
-            errors << "The routine with the name #{c[:command].to_s} does not exist" unless BlackStack::Deployer::routines.select { |r| r.name == c[:command].to_s }.size > 0
+            errors << "The routine with the name #{c[:command].to_s} does not exist" unless BlackStack::Deployer::deployment_routines.select { |r| r.name == c[:command].to_s }.size > 0
           end
         end
 
@@ -229,6 +240,12 @@ module BlackStack
             end # each
           end # if c[:matches].is_a?(Array)
         end # if :matches exists
+
+        # if c[:background] exists, it must be a boolean
+        if c.has_key?(:background)
+          errors << "The value of the key :background is not a boolean" unless c[:background].is_a?(TrueClass) || c[:background].is_a?(FalseClass)
+        end
+
         # 
         errors.uniq
       end # def self.descriptor_error(h)
@@ -257,7 +274,12 @@ module BlackStack
               self.nomatches << BlackStack::Deployer::NoMatch.new(m)
             end
           end
-        end                                                                                                                       
+        end
+        if h.has_key?(:background)
+          self.background = h[:background]
+        else
+          self.background = false
+        end                                                                                                            
       end # def initialize(h)
 
       def to_hash
@@ -276,6 +298,7 @@ module BlackStack
       end # def to_hash
 
       def run(node)
+        l = BlackStack::Deployer.logger
         errors = []
         code = self.command
         output = nil
@@ -316,8 +339,28 @@ module BlackStack
             end
           end
 
+          # if the command is configured to run in background, modify the code to run in background
+          if self.background
+            lines = code.strip.lines
+            total = lines.size
+            i = 0
+            lines.each { |l| 
+              i += 1
+              if i == total
+                l.gsub!(/;$/, '> /dev/null 2>&1 &')
+              else
+                l.gsub!(/;$/, '> /dev/null 2>&1;')
+              end
+            }
+            code = lines.join("\n")
+          end
+
           # running the command
+          l.logs "Show command output... " if BlackStack::Deployer.show_output
+          l.log "\n\nCommand:\n--------\n\n#{code} " if BlackStack::Deployer.show_output
           output = node.exec(code, self.sudo)
+          l.log "\n\nOutput:\n-------\n\n#{output}" if BlackStack::Deployer.show_output
+          l.logf('done tracing.') if BlackStack::Deployer.show_output
 
           # validation: at least one of the matches should happen
           if self.matches.size > 0
@@ -514,19 +557,19 @@ module BlackStack
       raise "The routine #{routine_name} cannot be run on the node #{node_name}: #{errors.uniq.join(".\n")}" if errors.length > 0
         
       # connect the node
-      self.logger.logs "Connecting to node #{n.name}... "
+      #self.logger.logs "Connecting to node #{n.name}... "
       n.connect
-      self.logger.done
+      #self.logger.done
 
       # run the routine
-      self.logger.logs "Running routine #{r.name}... "
+      #self.logger.logs "Running routine #{r.name}... "
       r.run(n)
-      self.logger.done
+      #self.logger.done
         
       # disconnect the node
-      self.logger.logs "Disconnecting from node #{n.name}... "
+      #self.logger.logs "Disconnecting from node #{n.name}... "
       n.disconnect
-      self.logger.done
+      #self.logger.done
         
     end # def
       
