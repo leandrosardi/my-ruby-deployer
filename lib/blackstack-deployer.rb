@@ -336,9 +336,12 @@ module BlackStack
             }
             ret = lines.join("\n")
           end
+          # apply modifications due the sudo flag
           # return the code
+          ret = node.code(ret, self.sudo)
+          # return
           ret
-      end
+        end
 
       def run(node)
         l = BlackStack::Deployer.logger
@@ -369,12 +372,12 @@ module BlackStack
           # running the command
           l.logs "Show command output... " if BlackStack::Deployer.show_output
           l.log "\n\nCommand:\n--------\n\n#{s} " if BlackStack::Deployer.show_output
-          output = node.exec(s, self.sudo)
+          output = node.exec(s, false) # false: I already evaluated the :sudo parameter in the code method above.
           l.log "\n\nOutput:\n-------\n\n#{output}" if BlackStack::Deployer.show_output
           l.logf('done tracing.') if BlackStack::Deployer.show_output
 
           # validation: at least one of the matches should happen
-          if self.matches.size > 0
+          if self.matches.size > 0 && !self.background
             i = 0
             self.matches.each do |m|
               if m.validate(output).size == 0 # no errors 
