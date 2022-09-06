@@ -485,7 +485,7 @@ BlackStack::Deployer::routines[0].commands[0].code
 
 **BlackStack Deployer** uses
 
-2. [BlackStack Nodes](https://rubygems.org/gems/blackstack-nodes/) for connecting; 
+2. [BlackStack Nodes](https://github.com/leandrosardi/blackstack-nodes/) for connecting; 
 2. [pg](https://rubygems.org/gems/pg/) for connecting PostgreSQL database; 
 3. [Sequel](https://github.com/jeremyevans/sequel) for simplifying some database tasks;
 4. [Net::SSH](https://github.com/net-ssh/net-ssh) for connecting Linux servers via SSH;
