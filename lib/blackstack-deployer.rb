@@ -339,8 +339,8 @@ module BlackStack
             end
           end
 
-          # if the command is configured to run in background, modify the code to run in background
-          if self.background
+          # if the command is configured to run in background, and the flag show_ouput is off, then modify the code to run in background
+          if self.background && !BlackStack::Deployer.show_output
             lines = code.strip.lines
             total = lines.size
             i = 0
