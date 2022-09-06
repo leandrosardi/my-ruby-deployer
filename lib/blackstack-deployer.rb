@@ -215,7 +215,7 @@ module BlackStack
           end
         else
           # validate: each line of the :command value must finish with ;
-          errors << "Each line in the :command value must finish with `;`. Refer https://github.com/leandrosardi/blackstack-deployer#67-running-commands-in-background for more details." unless c[:command].split("\n").select { |l| l.strip[-1,1] != ';' }.size == 0
+          errors << "Each line in the :command value must finish with `;`.\nCommand: #{c[:command]}.\nRefer https://github.com/leandrosardi/blackstack-deployer#67-running-commands-in-background for more details." unless c[:command].strip.split("\n").select { |l| l.strip[-1,1] != ';' }.size == 0
         end
 
         # if c[:matches] exists
@@ -303,7 +303,7 @@ module BlackStack
       # return the code to exectute the command, 
       # after applying modifications requested by 
       # some parameters like `:show_outut` or `:background`.
-      def code()
+      def code(node)
           ret = self.command
           # replacing parameters
           ret.scan(/%[a-zA-Z0-9\_]+%/).each do |p|
@@ -344,6 +344,7 @@ module BlackStack
         l = BlackStack::Deployer.logger
         errors = []
         output = nil
+        s = self.code(node)
 
         # if self.command is a symbol
         if self.command.is_a?(Symbol)
@@ -367,8 +368,8 @@ module BlackStack
 
           # running the command
           l.logs "Show command output... " if BlackStack::Deployer.show_output
-          l.log "\n\nCommand:\n--------\n\n#{self.code} " if BlackStack::Deployer.show_output
-          output = node.exec(self.code, self.sudo)
+          l.log "\n\nCommand:\n--------\n\n#{s} " if BlackStack::Deployer.show_output
+          output = node.exec(s, self.sudo)
           l.log "\n\nOutput:\n-------\n\n#{output}" if BlackStack::Deployer.show_output
           l.logf('done tracing.') if BlackStack::Deployer.show_output
 
@@ -392,7 +393,7 @@ module BlackStack
         # return a hash descriptor of the command result 
         {
           :command => self.command,
-          :code => self.code,
+          :code => s,
           :output => output,
           :errors => errors,
         }
