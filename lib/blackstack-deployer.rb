@@ -372,7 +372,7 @@ module BlackStack
           # running the command
           l.logs "Show command output... " if BlackStack::Deployer.show_output
           l.log "\n\nCommand:\n--------\n\n#{s} " if BlackStack::Deployer.show_output
-          output = node.exec(s, false) # false: I already evaluated the :sudo parameter in the code method above.
+          output = node.ssh.exec!(s) 
           l.log "\n\nOutput:\n-------\n\n#{output}" if BlackStack::Deployer.show_output
           l.logf('done tracing.') if BlackStack::Deployer.show_output
 
