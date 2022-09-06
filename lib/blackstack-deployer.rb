@@ -215,7 +215,7 @@ module BlackStack
           end
         else
           # validate: each line of the :command value must finish with ;
-          errors << "Each line in the :command value must finish with `;`. Refer https://github.com/leandrosardi/blackstack-deployer#66-running-commands-in-brackground for more details." unless c[:command].split("\n").select { |l| l.strip[-1,1] != ';' }.size == 0
+          errors << "Each line in the :command value must finish with `;`. Refer https://github.com/leandrosardi/blackstack-deployer#67-running-commands-in-background for more details." unless c[:command].split("\n").select { |l| l.strip[-1,1] != ';' }.size == 0
         end
 
         # if c[:matches] exists
