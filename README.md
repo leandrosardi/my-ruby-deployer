@@ -25,6 +25,11 @@ BlackStack::Deployer.deploy()
 	- [6.2. Pass routine parameters](#62-pass-routine-parameters)
 	- [6.3. Calling sub-routines](#63-calling-sub-routines)
 	- [6.4. Resuming database deploying from last checkpoint](#64-resuming-database-deploying-from-last-checkpoint)
+	- [6.5. Running Commands with `sudo` rights](#65-running-commands-with-sudo-rights)
+  - [6.6. Showing Commands Output](#67-showing-commands-output)
+  - [6.7. Running Commands in Background](#66-running-commands-in-brackground)
+  - [6.8. Checking Command Code](#68-checking-command-code)
+
 - [7. Dependencies](#7-dependencies)
 
 ## 1. Getting Started
@@ -320,6 +325,160 @@ You can get **blackstack-deployer** remember the last file processed by adding t
 ```ruby
 BlackStack::Deployer::DB::enable_checkpoints(true);
 # => true
+```
+
+### 6.5. Running Commands with `sudo` rights
+
+You can use the `:sudo` parameter to run a command with `sudo` rights.
+
+**Example:** The routine below is aimed to stop your webserver by killing any `puma` and any `ruby` processes.
+
+```ruby
+# setup deploying rutines
+BlackStack::Deployer::add_routine({
+  :name => 'stop-mysaas',
+    :commands => [
+      { 
+        # kill any processes line matching with /puma/, except the `grep` command that I am using to find such processes.
+        #
+        # kill any processes line matching with /ruby/, except the process where this command is running, and except the `grep` command that I am using to find such processes.
+        #
+        # reference: https://superuser.com/questions/49114/kill-all-processes-of-a-user-except-a-few-in-linux
+        :command => "
+          ps ax | grep puma | grep -v grep | cut -b3-7 | xargs -t kill;
+          ps ax | grep ruby | grep -v grep | grep -v #{Process.pid} | cut -b3-7 | xargs -t kill; 
+        ",
+      },  
+  ],
+});
+```
+
+If you execute `BlackStack::Deployer::routines[0].commands[0].code`, you will see this script:
+
+```bash
+ps ax | grep puma | grep -v grep | cut -b3-7 | xargs -t kill;
+ps ax | grep ruby | grep -v grep | grep -v <id of running process> | cut -b3-7 | xargs -t kill; 
+```
+
+Probably, such a routine will fail because of a permissions matter.
+
+To avoid this problem, you can add the `:sudo` parameter.
+
+```ruby
+# setup deploying rutines
+BlackStack::Deployer::add_routine({
+  :name => 'stop-mysaas',
+    :commands => [
+      { 
+        :command => "
+          ps ax | grep puma | grep -v grep | cut -b3-7 | xargs -t kill;
+          ps ax | grep ruby | grep -v grep | grep -v #{Process.pid} | cut -b3-7 | xargs -t kill; 
+        ",
+        :sudo => true,
+      },  
+  ],
+});
+```
+
+If you execute `BlackStack::Deployer::routines[0].commands[0].code`, you will see this script:
+
+```bash
+echo '<root password here>' | sudo -S su root -c '
+  ps ax | grep puma | grep -v grep | cut -b3-7 | xargs -t kill;
+  ps ax | grep ruby | grep -v grep | grep -v <id of running process> | cut -b3-7 | xargs -t kill;
+' 
+```
+
+### 6.6. Showing Commands Output
+
+You can check if a command ran successfully using the `:matches` and `:nomatches` parameters.
+
+If the command fails with any error that you didn't incldude there, the command will report that finished successfully even if it didn't.
+
+Add the line below to get your deployment process showing the output of each command.
+
+```ruby
+BlackStack::Deployer.set_show_output(true)
+```
+
+### 6.7. Running Commands in Background
+
+The `:background` parameter is used to run a command and don't wait it to finish.
+
+**Example:** The routine below starts a Ruby-Sinatra webserver.
+
+```ruby
+BlackStack::Deployer::add_routine({
+  :name => 'start-mysaas',
+  :commands => [
+    { 
+      :command => "
+        source /home/%ssh_username%/.rvm/scripts/rvm; rvm install 3.1.2; rvm --default use 3.1.2;
+        cd /home/%ssh_username%/code/mysaas;
+        export RUBYLIB=/home/%ssh_username%/code/mysaas;
+        nohup ruby app.rb port=%web_port%;
+      ",
+    }, 
+  ], 
+});
+```
+
+If you execute `BlackStack::Deployer::routines[0].commands[0].code`, you will see this script:
+
+```bash
+source /home/%ssh_username%/.rvm/scripts/rvm; rvm install 3.1.2; rvm --default use 3.1.2;
+cd /home/%ssh_username%/code/mysaas;
+export RUBYLIB=/home/%ssh_username%/code/mysaas;
+nohup ruby app.rb port=%web_port%;
+```
+
+Such a script will hang the terminal, with the webserver listening.
+
+The solution is using the `:background` parameter as is shown in the code below:
+
+```ruby
+BlackStack::Deployer::add_routine({
+  :name => 'start-mysaas',
+  :commands => [
+    { 
+      :command => "
+        source /home/%ssh_username%/.rvm/scripts/rvm; rvm install 3.1.2; rvm --default use 3.1.2;
+        cd /home/%ssh_username%/code/mysaas;
+        export RUBYLIB=/home/%ssh_username%/code/mysaas;
+        nohup ruby app.rb port=%web_port%;
+      ",
+      :background => true,
+    }, 
+  ], 
+});
+```
+
+The same script will be modified to run each line in background.
+If you execute `BlackStack::Deployer::routines[0].commands[0].code`, you will see this script:
+
+```bash
+source /home/%ssh_username%/.rvm/scripts/rvm; rvm install 3.1.2; rvm --default use 3.1.2 > /dev/null 2>&1;
+cd /home/%ssh_username%/code/mysaas > /dev/null 2>&1;
+export RUBYLIB=/home/%ssh_username%/code/mysaas > /dev/null 2>&1;
+nohup ruby app.rb port=%web_port% > /dev/null 2>&1 &
+```
+
+**Note:**
+
+1. On each line, except the last one, the last `;` is replaced by ` > /dev/null 2>&1;`.
+
+2. In the last line, the last `;` is replaced by ` > /dev/null 2>&1 &`.
+
+3. Each line in the code of the `:command` parameter must finish with `;`. No comments allowed.
+
+4. If the `:show_output` parameter is activated, the `:background` parameter will be ignored.
+
+### 6.8. Checking Command Code
+
+If you want to know exactly how a command will be exectued after apply the modification regarding the parmaeters listed above, just run this line of code:
+
+```ruby
+BlackStack::Deployer::routines[0].commands[0].code
 ```
 
 ## 7. Dependencies

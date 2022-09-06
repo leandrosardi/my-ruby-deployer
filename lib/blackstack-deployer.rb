@@ -213,6 +213,9 @@ module BlackStack
             # validate: existis a routine with a the value c[:command].to_s on its :name key
             errors << "The routine with the name #{c[:command].to_s} does not exist" unless BlackStack::Deployer::deployment_routines.select { |r| r.name == c[:command].to_s }.size > 0
           end
+        else
+          # validate: each line of the :command value must finish with ;
+          errors << "Each line in the :command value must finish with `;`. Refer https://github.com/leandrosardi/blackstack-deployer#66-running-commands-in-brackground for more details." unless c[:command].split("\n").select { |l| l.strip[-1,1] != ';' }.size == 0
         end
 
         # if c[:matches] exists
@@ -297,68 +300,75 @@ module BlackStack
         h
       end # def to_hash
 
-      def run(node)
-        l = BlackStack::Deployer.logger
-        errors = []
-        code = self.command
-        output = nil
-
-        # if code is a symbol
-        if code.is_a?(Symbol)
-
-          # if code is equel than :reboot
-          if code == :reboot
-            # call the node reboot method
-            node.reboot
-          else
-            # look for a routine with this name
-            r = BlackStack::Deployer.routines.select { |r| r.name == code.to_s }.first
-            if !r.nil?
-              r.run(node)
-            else
-              raise "The routine #{code.to_s} does not exist"
-            end
-          end
-
-        # if code is a string
-        elsif code.is_a?(String)
+      # return the code to exectute the command, 
+      # after applying modifications requested by 
+      # some parameters like `:show_outut` or `:background`.
+      def code()
+          ret = self.command
           # replacing parameters
-          code.scan(/%[a-zA-Z0-9\_]+%/).each do |p|
+          ret.scan(/%[a-zA-Z0-9\_]+%/).each do |p|
             if p == '%eth0_ip%' # reserved parameter
               # TODO: move the method eth0_ip to the blackstack-nodes library
-              code.gsub!(p, node.eth0_ip) 
+              ret.gsub!(p, node.eth0_ip) 
             elsif p == '%timestamp%' # reserved parameter
               # TODO: move this to a timestamp function on blackstack-core
-              code.gsub!(p, Time.now.to_s.gsub(/\D/, '')) 
+              ret.gsub!(p, Time.now.to_s.gsub(/\D/, '')) 
             else
               if node.parameters.has_key?(p.gsub(/%/, '').to_sym)
-                code.gsub!(p, node.parameters[p.gsub(/%/, '').to_sym].to_s)
+                ret.gsub!(p, node.parameters[p.gsub(/%/, '').to_sym].to_s)
               else
                 raise "The parameter #{p} does not exist in the node descriptor #{node.parameters.to_s}"
               end
             end
           end
-
-          # if the command is configured to run in background, and the flag show_ouput is off, then modify the code to run in background
+          # if the command is configured to run in background, and the flag show_ouput is off, then modify the ret to run in background
           if self.background && !BlackStack::Deployer.show_output
-            lines = code.strip.lines
+            lines = ret.strip.lines
             total = lines.size
             i = 0
             lines.each { |l| 
               i += 1
               if i == total
-                l.gsub!(/;$/, '> /dev/null 2>&1 &')
+                l.gsub!(/;$/, ' > /dev/null 2>&1 &')
               else
-                l.gsub!(/;$/, '> /dev/null 2>&1;')
+                l.gsub!(/;$/, ' > /dev/null 2>&1;')
               end
             }
-            code = lines.join("\n")
+            ret = lines.join("\n")
           end
+          # return the code
+          ret
+      end
+
+      def run(node)
+        l = BlackStack::Deployer.logger
+        errors = []
+        output = nil
+
+        # if self.command is a symbol
+        if self.command.is_a?(Symbol)
+
+          # if self.command is equel than :reboot
+          if self.command == :reboot
+            # call the node reboot method
+            node.reboot
+          else
+            # look for a routine with this name
+            r = BlackStack::Deployer.routines.select { |r| r.name == self.command.to_s }.first
+            if !r.nil?
+              r.run(node)
+            else
+              raise "The routine #{self.command.to_s} does not exist"
+            end
+          end
+
+        # if self.command is a string
+        elsif self.command.is_a?(String)
 
           # running the command
           l.logs "Show command output... " if BlackStack::Deployer.show_output
-          l.log "\n\nCommand:\n--------\n\n#{code} " if BlackStack::Deployer.show_output
-          output = node.exec(code, self.sudo)
+          l.log "\n\nCommand:\n--------\n\n#{self.code} " if BlackStack::Deployer.show_output
+          output = node.exec(self.code, self.sudo)
           l.log "\n\nOutput:\n-------\n\n#{output}" if BlackStack::Deployer.show_output
           l.logf('done tracing.') if BlackStack::Deployer.show_output
 
@@ -382,7 +392,7 @@ module BlackStack
         # return a hash descriptor of the command result 
         {
           :command => self.command,
-          :code => code,
+          :code => self.code,
           :output => output,
           :errors => errors,
         }
