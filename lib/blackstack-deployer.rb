@@ -215,7 +215,13 @@ module BlackStack
           end
         else
           # validate: each line of the :command value must finish with ;
-          errors << "Each line in the :command value must finish with `;`.\nCommand: #{c[:command]}.\nRefer https://github.com/leandrosardi/blackstack-deployer#67-running-commands-in-background for more details." unless c[:command].strip.split("\n").select { |l| l.strip[-1,1] != ';' }.size == 0
+          #errors << "Each line in the :command value must finish with `;`.\nCommand: #{c[:command]}.\nRefer https://github.com/leandrosardi/blackstack-deployer#67-running-commands-in-background for more details." unless c[:command].strip.split("\n").select { |l| l.strip.strip[-1,1] != ';' }.size == 0
+          c[:command].strip.split("\n").each { |l| 
+            l.strip!
+            if l.strip[-1,1] != ';'
+              errors << "Each line in the :command value must finish with `;`.\nCommand: #{l}.\nRefer https://github.com/leandrosardi/blackstack-deployer#67-running-commands-in-background for more details."
+            end
+          }
         end
 
         # if c[:matches] exists
@@ -305,6 +311,9 @@ module BlackStack
       # some parameters like `:show_outut` or `:background`.
       def code(node)
           ret = self.command
+#puts
+#puts
+#puts "self.command: #{self.command}"
           # replacing parameters
           ret.scan(/%[a-zA-Z0-9\_]+%/).each do |p|
             if p == '%eth0_ip%' # reserved parameter
@@ -314,11 +323,17 @@ module BlackStack
               # TODO: move this to a timestamp function on blackstack-core
               ret.gsub!(p, Time.now.to_s.gsub(/\D/, '')) 
             else
+#puts
+#puts
+#puts "p: #{p}"
               if node.parameters.has_key?(p.gsub(/%/, '').to_sym)
                 ret.gsub!(p, node.parameters[p.gsub(/%/, '').to_sym].to_s)
               else
                 raise "The parameter #{p} does not exist in the node descriptor #{node.parameters.to_s}"
               end
+#puts
+#puts
+#puts "ret: #{ret}"
             end
           end
           # if the command is configured to run in background, and the flag show_ouput is off, then modify the ret to run in background
@@ -339,6 +354,19 @@ module BlackStack
           # apply modifications due the sudo flag
           # return the code
           ret = node.code(ret, self.sudo)
+#puts
+#puts
+#puts 'lalala'
+#puts ret
+=begin
+          if self.sudo
+            if node.using_password?
+              ret = "echo '#{node.ssh_password.gsub(/'/, "\\\\'")}' | sudo -S su root -c '#{ret}'"
+            elsif node.using_private_key_file?
+              ret = "sudo -S su root -c '#{ret}'"
+            end
+          end  
+=end
           # return
           ret
         end
