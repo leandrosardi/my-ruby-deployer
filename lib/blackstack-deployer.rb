@@ -336,7 +336,8 @@ module BlackStack
 #puts "ret: #{ret}"
             end
           end
-          # if the command is configured to run in background, and the flag show_ouput is off, then modify the ret to run in background
+          # if the command is configured to run in background, then modify the ret to run in background.
+          # note: even if you the flag show_ouput is on, you won't see any error message.
           if self.background #&& !BlackStack::Deployer.show_output
             lines = ret.strip.lines
             total = lines.size
