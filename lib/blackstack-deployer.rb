@@ -211,7 +211,7 @@ module BlackStack
             # :reboot is a reserved word, so it is fine to call :reboot
           else
             # validate: existis a routine with a the value c[:command].to_s on its :name key
-            errors << "The routine with the name #{c[:command].to_s} does not exist" unless BlackStack::Deployer::deployment_routines.select { |r| r.name == c[:command].to_s }.size > 0
+            errors << "The routine with the name #{c[:command].to_s} does not exist" unless BlackStack::Deployer::routines.select { |r| r.name == c[:command].to_s }.size > 0
           end
         else
           # validate: each line of the :command value must finish with ;
@@ -284,11 +284,16 @@ module BlackStack
             end
           end
         end
+#puts
+#puts
+#puts "command: #{self.command}"
+#puts "h[:background] = #{h[:background]}"
         if h.has_key?(:background)
           self.background = h[:background]
         else
           self.background = false
-        end                                                                                                            
+        end
+#puts "self.background = #{self.background}"
       end # def initialize(h)
 
       def to_hash
@@ -338,6 +343,8 @@ module BlackStack
           end
           # if the command is configured to run in background, then modify the ret to run in background.
           # note: even if you the flag show_ouput is on, you won't see any error message.
+#puts
+#puts "self.background: #{self.background.to_s}"
           if self.background #&& !BlackStack::Deployer.show_output
             lines = ret.strip.lines
             total = lines.size
