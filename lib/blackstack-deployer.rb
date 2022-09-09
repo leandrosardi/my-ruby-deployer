@@ -383,7 +383,6 @@ module BlackStack
         l = BlackStack::Deployer.logger
         errors = []
         output = nil
-        s = self.code(node)
 
         # if self.command is a symbol
         if self.command.is_a?(Symbol)
@@ -404,7 +403,7 @@ module BlackStack
 
         # if self.command is a string
         elsif self.command.is_a?(String)
-
+          s = self.code(node)
           # running the command
           l.logs "Show command output... " if BlackStack::Deployer.show_output
           l.log "\n\nCommand:\n--------\n\n#{s} " if BlackStack::Deployer.show_output
