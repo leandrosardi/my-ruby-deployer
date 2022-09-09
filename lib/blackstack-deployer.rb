@@ -166,17 +166,21 @@ module BlackStack
       def run(node)
         ret = []
         self.commands.each do |c|
-          #BlackStack::Deployer.logger.logs "Running command: #{c.command.to_s}... "
+          lines = c.command.to_s.strip.split(/\n/) # use this to make log more easy to read.
+          line_to_show = lines[0].size > 25 ? lines[0][0..25] + "..." : lines[0] # use this to make log more easy to read.
+          BlackStack::Deployer.logger.logs "Running command: #{line_to_show.to_s} #{lines.size > 1 ? "(+#{lines.size-1} more lines)" : ''}... "
+#puts 'b1'
           h = c.run(node)
+#puts 'b2'
           ret << h
 
           #BlackStack::Deployer.logger.logs "Result: "
           #BlackStack::Deployer.logger.logf h.to_s
 
           if h[:errors].size == 0
-            #BlackStack::Deployer.logger.done
+            BlackStack::Deployer.logger.done
           else
-            #BlackStack::Deployer.logger.logf('error: ' + h.to_s)
+            BlackStack::Deployer.logger.logf('error: ' + h.to_s)
             raise "Error running command:\n#{h[:errors].uniq.join("\n")}"
           end
         end
@@ -604,17 +608,17 @@ module BlackStack
 
       # raise exception if any error has been found
       raise "The routine #{routine_name} cannot be run on the node #{node_name}: #{errors.uniq.join(".\n")}" if errors.length > 0
-        
+#puts 'a'
       # connect the node
       #self.logger.logs "Connecting to node #{n.name}... "
       n.connect
       #self.logger.done
-
+#puts 'b'
       # run the routine
       #self.logger.logs "Running routine #{r.name}... "
       r.run(n)
       #self.logger.done
-        
+#puts 'c' 
       # disconnect the node
       #self.logger.logs "Disconnecting from node #{n.name}... "
       n.disconnect
