@@ -222,9 +222,9 @@ module BlackStack
           #errors << "Each line in the :command value must finish with `;`.\nCommand: #{c[:command]}.\nRefer https://github.com/leandrosardi/blackstack-deployer#67-running-commands-in-background for more details." unless c[:command].strip.split("\n").select { |l| l.strip.strip[-1,1] != ';' }.size == 0
           c[:command].strip.split("\n").each { |l| 
             l.strip!
-            if l.strip[-1,1] != ';'
-              errors << "Each line in the :command value must finish with `;`.\nCommand: #{l}.\nRefer https://github.com/leandrosardi/blackstack-deployer#67-running-commands-in-background for more details."
-            end
+            #if l.strip[-1,1] != ';'
+            #  errors << "Each line in the :command value must finish with `;`.\nCommand: #{l}.\nRefer https://github.com/leandrosardi/blackstack-deployer#67-running-commands-in-background for more details."
+            #end
           }
         end
 
