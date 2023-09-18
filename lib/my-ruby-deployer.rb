@@ -1,8 +1,8 @@
 require 'blackstack-nodes'
+require 'pg'
 require 'sequel'
 require 'colorize'
 require 'simple_cloud_logging'
-require 'pry'
 
 module BlackStack
   # Deployer is a library that can be used to deploy a cluster of nodes.

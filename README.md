@@ -29,13 +29,13 @@ BlackStack::Deployer.deploy()
 **Step 1:** Install Deployer.
 
 ```bash 
-gem install deployer
+gem install my-ruby-deployer
 ```
 
-**Step 2:** Require **deployer**.
+**Step 2:** Require **my-ruby-deployer**.
 
 ```ruby
-require 'deployer'
+require 'my-ruby-deployer'
 ```
 
 **Step 3:** Define a Deployment Routine.
@@ -114,7 +114,7 @@ BlackStack::Deployer.deploy('upgrade-packages')
 
 ## 2. Pre-Defined Routines
 
-The only name that you can't assign to a routine `'reboot'`, because it is reserved as a native routine of **deployer**.
+The only name that you can't assign to a routine `'reboot'`, because it is reserved as a native routine of **my-ruby-deployer**.
 
 **Example:**
 
@@ -254,7 +254,7 @@ VALUES ('1fde0820-ae46-4687-ab4b-d8196f6e5bd0', 'ar', 'Argentina') ON CONFLICT D
 
 ## 7. Advanced Features
 
-There are some advanced features that make **deployer** more versatile.
+There are some advanced features that make **my-ruby-deployer** more versatile.
 
 ### 7.1. Requesting node reboot 
 
@@ -327,7 +327,7 @@ BlackStack::Deployer::DB::deploy('20220527.1.transactions.sql');
 # => true
 ```
 
-You can get **deployer** remember the last file processed by adding the line below.
+You can get **my-ruby-deployer** remember the last file processed by adding the line below.
 
 ```ruby
 BlackStack::Deployer::DB::enable_checkpoints(true);
