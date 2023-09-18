@@ -147,7 +147,7 @@ BlackStack::Deployer::add_nodes([{
     :ssh_password => 'foo',
     :ssh_port => 22,
     # setup a default routine
-    :default_routine => 'upgrade-packages',
+    :deployment_routine => 'upgrade-packages',
 }, {
   ...
 }])
