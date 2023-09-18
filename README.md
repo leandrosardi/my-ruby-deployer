@@ -1,8 +1,8 @@
 ![logo](logo.png)
 
-# BlackStack Deployer
+# Deployer
 
-**BlackStack Deployer** automates what you already know how to do manually, but in a repeatable, scalable fashion. There is no magic here!
+**Deployer** automates what you already know how to do manually, but in a repeatable, scalable fashion. There is no magic here!
 
 ```ruby
 # deploy new version
@@ -11,7 +11,7 @@ BlackStack::Deployer.deploy()
 
 ## For Any Language
 
-**BlackStack Deployer** has been written in Ruby, but it can easily be used to deploy any language.
+**Deployer** has been written in Ruby, but it can easily be used to deploy any language.
 
 ## Outline
 
@@ -34,129 +34,144 @@ BlackStack::Deployer.deploy()
 
 ## 1. Getting Started
 
-**Step 1:** Install BlackStack Deployer.
+**Step 1:** Install Deployer.
 
 ```bash 
-gem install blackstack-deployer
+gem install deployer
 ```
 
-**Step 2:** Add the computers (nodes) where you want to run deployments.
-
-**Important:** The **user** must be a sudoer. 
+**Step 2:** Require **deployer**.
 
 ```ruby
-require 'blackstack-deployer'
-
-# setup nodes
-BlackStack::Deployer::set_nodes([{
-  :net_remote_ip => 's1.mydomain.com', 
-  :ssh_username => 'username', 
-  :ssh_password => 'password', 
-}, { 
-  :net_remote_ip => 's2.mydomain.com', 
-  :ssh_username => 'username', 
-  :ssh_password => 'password', 
-}])
+require 'deployer'
 ```
 
-Instead of defining the `ssh_username` and `ssh_password`, you can setup either `.pem` or `.ppk` private key files.
+**Step 3:** Define a Deployment Routine.
 
 ```ruby
-BlackStack::Deployer::add_node({
-  :name => 'node1',
-  :net_remote_ip => 'db.mydomain.com', 
-  :ssh_username => 'username',
-  :ssh_private_key_file => '~/certs/db.pem', 
-})
-``` 
-
-**Step 3:** Setup deployment routines.
-
-```ruby
-# setup deploying rutines
-BlackStack::Deployer::set_routines([{
-  :name => 'pull-source-code',
-  :commands => [
-    { :command => 'cd ~/code/myrpa' },
-    { :command => 'git fetch --all' },
-    { :command => 'git reset --hard origin/main' },
-  ],
-}, {
-  :name => 'restart-rpa',
-  :commands => [
-    { :command => 'pkill xterm' },
-    { :command => 'xterm -e bash -c "cd ~/code/myrpa;./rpa.rb;bash"' },
-  ],
-}]);
-```
-
-**Step 4:** Run a deployment routine
-
-```ruby
-BlackStack::Deployer::run('node1', 'pull-source-code');
-# => true
-```
-
-As a final note: the only name that you can't assign to a routine `'reboot'`, because it is reserved as a native routine of **blackstack-deployer**.
-
-## 2. Adding Validations
-
-You can validate the output of each command with an array of regular experessions (`:matches`).
-
-You can also look for a list of well known error messages, listed in the `:nomatches` key.
-
-```ruby
-# setup deploying rutines for different kind of servers.
+# routines
 BlackStack::Deployer::add_routine({
-    # download the latest version of source code
-    :name => 'restart-webserver',
-    # run additional bash commands, and validate outputs.
-    # 
-    # :command is a string with the command to run.
-    # :matches is either a regular expression or an array of regular experessions. The command output must match with all of them.
-    # :nomatches is either a regular expression or an array of regular experessions. The command output must dis-match with all of them.
-    # 
-    :commands => [
-      { :command => 'cd ~/code/mywebserver' },
-      { 
-        :command => 'ruby ./webserver.rb --restart', 
-        :matches => /Restarted Successfully/, 
-        :nomatches => [
-          { :nomatch => /Permission Denied/, :error_description => 'no grants' },
-          { :nomatch => /Command not found/, :error_description => 'kill command is not installed' },
-        ]
-      },
-    ],
+  :name => 'upgrade-packages',
+  :commands => [
+    { 
+        :command => '
+          apt update
+          apt upgrade
+        ', 
+    },
+  ],
 });
 ```
 
-## 3. Defining Node Profiles
-
-**Step 1:** Define the routine that each node should run for deploying.
+Since the deployment must run fully automated, you want the commands don't interact with the user.
 
 ```ruby
-BlackStack::Deployer::set_nodes([{
-  :name=>'node1',
-  :net_remote_ip => 's1.mydomain.com', 
-  :ssh_username => 'username', 
-  :ssh_password => 'password', 
-  :deployment_routine => 'rpa-node',
-}, { 
-  :name=>'node2',
-  :net_remote_ip => 's2.mydomain.com', 
-  :ssh_username => 'username', 
-  :ssh_password => 'password', 
-  :deployment_routine => 'rpa-node'
+# routines
+BlackStack::Deployer::add_routine({
+  :name => 'upgrade-packages',
+  :commands => [
+    { 
+        :command => '
+          apt -y update
+          apt -y upgrade
+        ', 
+    },
+  ],
+});
+```
+
+As a good practice, you may want to log the output of each command:
+
+```ruby
+# routines
+BlackStack::Deployer::add_routine({
+  :name => 'upgrade-packages',
+  :commands => [
+    { 
+        :command => '
+            echo "Upgrading packages..." >> /tmp/upgrade-packages.log 2>&1
+            apt -y update >> /tmp/upgrade-packages.log 2>&1
+            echo "Upgrading packages..." >> /tmp/upgrade-packages.log 2>&1
+            apt -y upgrade >> /tmp/upgrade-packages.log 2>&1
+        ', 
+    },
+  ],
+});
+```
+
+**Step 4:** Define your fleet of computers (nodes).
+
+```ruby
+BlackStack::Deployer::add_nodes([{
+    # use this command to connect from terminal: ssh -i "plank.pem" ubuntu@ec2-34-234-83-88.compute-1.amazonaws.com
+    :name => 'node01',
+    :net_remote_ip => '127.0.0.1',  
+    :ssh_username => 'leandro',
+    :ssh_password => 'foo',
+    :ssh_port => 22,
+}, {
+  ...
 }])
 ```
 
-**Step 2:** Run deployment for all nodes.
+**Step 5:** Run a deployment for all your nodes
 
 ```ruby
-BlackStack::Deployer::deploy()
+BlackStack::Deployer.deploy('upgrade-packages')
 ```
 
-## 4. Running Database Updates
+## 2. Pre-Defined Routines
+
+The only name that you can't assign to a routine `'reboot'`, because it is reserved as a native routine of **deployer**.
+
+**Example:**
+
+```ruby
+# routines
+BlackStack::Deployer::add_routine({
+  :name => 'change-hostname',
+  :commands => [
+    { 
+        :command => '
+            echo "%name%" > /etc/hostname
+        ', 
+    }, { 
+        :command => :reboot
+    },
+  ],
+});
+```
+
+## 3. Default Routines
+
+```ruby
+BlackStack::Deployer::add_nodes([{
+    # use this command to connect from terminal: ssh -i "plank.pem" ubuntu@ec2-34-234-83-88.compute-1.amazonaws.com
+    :name => 'node01',
+    :net_remote_ip => '127.0.0.1',  
+    :ssh_username => 'leandro',
+    :ssh_password => 'foo',
+    :ssh_port => 22,
+    # setup a default routine
+    :default_routine => 'upgrade-packages',
+}, {
+  ...
+}])
+```
+
+**Step 5:** Run a deployment for all your nodes
+
+```ruby
+BlackStack::Deployer.deploy # it will use the default routine of each node
+```
+
+## 4. Run a Routine for a Specific Node
+
+```ruby
+BlackStack::Deployer.run_routine(node_name, routine_name)
+```
+
+## 5. Running Database Updates
 
 This feature works with any RDBMS supported by [Sequel](https://sequel.jeremyevans.net/).
 
@@ -247,7 +262,7 @@ VALUES ('1fde0820-ae46-4687-ab4b-d8196f6e5bd0', 'ar', 'Argentina') ON CONFLICT D
 
 ## 6. Advanced Features
 
-There are some advanced features that make **blackstack-deployer** more versatile.
+There are some advanced features that make **deployer** more versatile.
 
 ### 6.1. Requesting node reboot 
 
@@ -320,7 +335,7 @@ BlackStack::Deployer::DB::deploy('20220527.1.transactions.sql');
 # => true
 ```
 
-You can get **blackstack-deployer** remember the last file processed by adding the line below.
+You can get **deployer** remember the last file processed by adding the line below.
 
 ```ruby
 BlackStack::Deployer::DB::enable_checkpoints(true);
@@ -483,7 +498,7 @@ BlackStack::Deployer::routines[0].commands[0].code
 
 ## 7. Dependencies
 
-**BlackStack Deployer** uses
+**Deployer** uses
 
 2. [BlackStack Nodes](https://github.com/leandrosardi/blackstack-nodes/) for connecting; 
 2. [pg](https://rubygems.org/gems/pg/) for connecting PostgreSQL database; 

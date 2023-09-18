@@ -1,33 +1,14 @@
 require 'blackstack-nodes'
 require 'sequel'
+require 'colorize'
+require 'simple_cloud_logging'
+require 'pry'
 
 module BlackStack
   # Deployer is a library that can be used to deploy a cluster of nodes.
   module Deployer
-    @@logger = BlackStack::BaseLogger.new(nil)
-    @@show_output = false
     @@nodes = []
     @@routines = []
-
-    # set show_output
-    def self.set_show_output(value)
-      @@show_output = value
-    end
-
-    # set the logger
-    def self.set_logger(i_logger)
-      @@logger = i_logger
-    end
-
-    # get show_output
-    def self.show_output
-      @@show_output
-    end
-
-    # get the logger assigned to the module
-    def self.logger
-      @@logger
-    end # def self.errors
 
     # get the array of nodes assigned to the module
     def self.nodes
@@ -79,7 +60,8 @@ module BlackStack
         errors << "The parameter h[:deployment_routine] is required" if h[:deployment_routine].nil?
 
         # validate: h[:deployment_routine] is a string
-        errors << "The parameter h[:deployment_routine] is not a string" unless h[:deployment_routine].is_a?(String)
+        # This value is no longer mandatory
+        #errors << "The parameter h[:deployment_routine] is not a string" unless h[:deployment_routine].is_a?(String)
         
         # return list of errors
         errors.uniq
@@ -99,8 +81,10 @@ module BlackStack
         h
       end # def to_hash
 
-      def deploy()
-        BlackStack::Deployer::run_routine(self.name, self.deployment_routine);
+      def deploy(routine_name=nil, l=nil)
+        l = BlackStack::DummyLogger.new(nil) if l.nil?
+        s = routine_name || self.deployment_routine
+        BlackStack::Deployer::run_routine(self.name, s, l);
       end
     end # module NodeModule
 
@@ -163,34 +147,23 @@ module BlackStack
         h
       end
 
-      def run(node)
-        ret = []
+      def run(node, l=nil)
+        l = BlackStack::DummyLogger.new(nil) if l.nil?
+        l.logs "Running routine #{self.name.blue} on node #{node.name.blue}... "
+        i = 0
         self.commands.each do |c|
-          lines = c.command.to_s.strip.split(/\n/) # use this to make log more easy to read.
-          line_to_show = lines[0].size > 25 ? lines[0][0..25] + "..." : lines[0] # use this to make log more easy to read.
-          BlackStack::Deployer.logger.logs "Running command: #{line_to_show.to_s} #{lines.size > 1 ? "(+#{lines.size-1} more lines)" : ''}... "
-#puts 'b1'
-          h = c.run(node)
-#puts 'b2'
-          ret << h
-
-          #BlackStack::Deployer.logger.logs "Result: "
-          #BlackStack::Deployer.logger.logf h.to_s
-
-          if h[:errors].size == 0
-            BlackStack::Deployer.logger.done
-          else
-            BlackStack::Deployer.logger.logf('error: ' + h.to_s)
-            raise "Error running command:\n#{h[:errors].uniq.join("\n")}"
-          end
+          i += 1
+          l.logs "Command #{i.to_s.blue}... "
+          c.run(node, l)
+          l.logf 'done'.green
         end
-        ret
+        l.logf 'done'.green
       end # def run(node)
     end # module RoutineModule
 
     # define attributes and methods of a routine's command
     module CommandModule
-      attr_accessor :command, :matches, :nomatches, :sudo, :background
+      attr_accessor :command
 
       def self.descriptor_errors(c)
         errors = []
@@ -204,11 +177,6 @@ module BlackStack
         # validate: the value of c[:command] is a string or symbol
         errors << "The value of c[:command] is not a string and is not a symbol" unless c[:command].is_a?(String) || c[:command].is_a?(Symbol)
 
-        # validate: if the key :sudo exists, then its value is a boolean
-        if c.has_key?(:sudo)
-          errors << "The value of c[:sudo] is not a boolean" unless c[:sudo].is_a?(TrueClass) || c[:sudo].is_a?(FalseClass)
-        end
-
         # if the parameter h[:name] is a symbol
         if c[:command].is_a?(Symbol)
           if c[:command] == :reboot
@@ -218,45 +186,9 @@ module BlackStack
             errors << "The routine with the name #{c[:command].to_s} does not exist" unless BlackStack::Deployer::routines.select { |r| r.name == c[:command].to_s }.size > 0
           end
         else
-          # validate: each line of the :command value must finish with ;
-          #errors << "Each line in the :command value must finish with `;`.\nCommand: #{c[:command]}.\nRefer https://github.com/leandrosardi/blackstack-deployer#67-running-commands-in-background for more details." unless c[:command].strip.split("\n").select { |l| l.strip.strip[-1,1] != ';' }.size == 0
           c[:command].strip.split("\n").each { |l| 
             l.strip!
-            #if l.strip[-1,1] != ';'
-            #  errors << "Each line in the :command value must finish with `;`.\nCommand: #{l}.\nRefer https://github.com/leandrosardi/blackstack-deployer#67-running-commands-in-background for more details."
-            #end
           }
-        end
-
-        # if c[:matches] exists
-        if c.has_key?(:matches)
-          # validate: the value of c[:matches] must by a regex or an array
-          errors << "The value of the key :matches is not a regex nor an array" unless c[:matches].is_a?(Regexp) || c[:matches].is_a?(Array)
-          # if c[:matches] is a array
-          if c[:matches].is_a?(Array)
-            # validate: each element in the the array c[:matches] is a regex
-            c[:matches].each do |m|
-              errors += BlackStack::Deployer::MatchModule.descriptor_errors(m)
-            end # each
-          end # if c[:matches].is_a?(Array)
-        end # if :matches exists
-
-        # if c[:nomatches] exists
-        if c.has_key?(:nomatches)
-          # validate: the value of c[:nomatches] must by a regex or an array
-          errors << "The value of the key :nomatches is not a regex nor an array" unless c[:nomatches].is_a?(Regexp) || c[:nomatches].is_a?(Array)
-          # if c[:nomatches] is a array
-          if c[:nomatches].is_a?(Array)
-            # validate: each element in the the array c[:nomatches] is a hash
-            c[:nomatches].each do |m|
-              errors += BlackStack::Deployer::NoMatchModule.descriptor_errors(m)
-            end # each
-          end # if c[:matches].is_a?(Array)
-        end # if :matches exists
-
-        # if c[:background] exists, it must be a boolean
-        if c.has_key?(:background)
-          errors << "The value of the key :background is not a boolean" unless c[:background].is_a?(TrueClass) || c[:background].is_a?(FalseClass)
         end
 
         # 
@@ -267,261 +199,64 @@ module BlackStack
         errors = BlackStack::Deployer::CommandModule.descriptor_errors(h)
         raise "The node descriptor is not valid: #{errors.uniq.join(".\n")}" if errors.length > 0
         self.command = h[:command]
-        self.sudo = h[:sudo].nil? ? true : h[:sudo]
-        self.matches = []
-        self.nomatches = []
-        if h.has_key?(:matches)
-          if h[:matches].is_a?(Regexp)
-            self.matches << BlackStack::Deployer::Match.new(h[:matches])
-          else
-            h[:matches].each do |m|
-              self.matches << BlackStack::Deployer::Match.new(m)
-            end
-          end
-        end
-        if h.has_key?(:nomatches)
-          if h[:nomatches].is_a?(Regexp)
-            self.nomatches << BlackStack::Deployer::NoMatch.new(h[:nomatches])
-          else
-            h[:nomatches].each do |m|
-              self.nomatches << BlackStack::Deployer::NoMatch.new(m)
-            end
-          end
-        end
-#puts
-#puts
-#puts "command: #{self.command}"
-#puts "h[:background] = #{h[:background]}"
-        if h.has_key?(:background)
-          self.background = h[:background]
-        else
-          self.background = false
-        end
-#puts "self.background = #{self.background}"
       end # def initialize(h)
 
       def to_hash
         h = {}
         h[:command] = self.command
-        h[:sudo] = self.sudo
-        h[:matches] = []
-        h[:nomatches] = []
-        self.matches.each do |m|
-          h[:matches] << m.to_hash
-        end
-        self.nomatches.each do |m|
-          h[:nomatches] << m.to_hash
-        end
         h
       end # def to_hash
 
-      # return the code to exectute the command, 
-      # after applying modifications requested by 
-      # some parameters like `:show_outut` or `:background`.
-      def code(node)
-          ret = self.command
-#puts
-#puts
-#puts "self.command: #{self.command}"
-          # replacing parameters
-          ret.scan(/%[a-zA-Z0-9\_]+%/).each do |p|
-            if p == '%eth0_ip%' # reserved parameter
-              # TODO: move the method eth0_ip to the blackstack-nodes library
-              ret.gsub!(p, node.eth0_ip) 
-            elsif p == '%timestamp%' # reserved parameter
-              # TODO: move this to a timestamp function on blackstack-core
-              ret.gsub!(p, Time.now.to_s.gsub(/\D/, '')) 
-            else
-#puts
-#puts
-#puts "p: #{p}"
-              if node.parameters.has_key?(p.gsub(/%/, '').to_sym)
-                ret.gsub!(p, node.parameters[p.gsub(/%/, '').to_sym].to_s)
-              else
-                raise "The parameter #{p} does not exist in the node descriptor #{node.parameters.to_s}"
-              end
-#puts
-#puts
-#puts "ret: #{ret}"
-            end
-          end
-          # if the command is configured to run in background, then modify the ret to run in background.
-          # note: even if you the flag show_ouput is on, you won't see any error message.
-#puts
-#puts "self.background: #{self.background.to_s}"
-          if self.background #&& !BlackStack::Deployer.show_output
-            lines = ret.strip.lines
-            total = lines.size
-            i = 0
-            lines.each { |l| 
-              i += 1
-              if i == total
-                l.gsub!(/;$/, ' > /dev/null 2>&1 &')
-              else
-                l.gsub!(/;$/, ' > /dev/null 2>&1;')
-              end
-            }
-            ret = lines.join("\n")
-          end
-          # apply modifications due the sudo flag
-          # return the code
-          ret = node.code(ret, self.sudo)
-#puts
-#puts
-#puts 'lalala'
-#puts ret
-=begin
-          if self.sudo
-            if node.using_password?
-              ret = "echo '#{node.ssh_password.gsub(/'/, "\\\\'")}' | sudo -S su root -c '#{ret}'"
-            elsif node.using_private_key_file?
-              ret = "sudo -S su root -c '#{ret}'"
-            end
-          end  
-=end
-          # return
-          ret
-        end
-
-      def run(node)
-        l = BlackStack::Deployer.logger
-        errors = []
-        output = nil
+      # running pre-defined commands: :root
+      # calling to other routines: :'change-name'
+      # calling 
+      def run(n, l=nil)
+        l = BlackStack::DummyLogger.new(nil) if l.nil?
 
         # if self.command is a symbol
         if self.command.is_a?(Symbol)
 
           # if self.command is equel than :reboot
           if self.command == :reboot
-            # call the node reboot method
-            node.reboot
+            # call the n reboot method
+            n.reboot
           else
             # look for a routine with this name
             r = BlackStack::Deployer.routines.select { |r| r.name == self.command.to_s }.first
             if !r.nil?
-              r.run(node)
+              r.run(n)
             else
               raise "The routine #{self.command.to_s} does not exist"
             end
           end
 
         # if self.command is a string
-        elsif self.command.is_a?(String)
-          s = self.code(node)
-          # running the command
-          l.logs "Show command output... " if BlackStack::Deployer.show_output
-          l.log "\n\nCommand:\n--------\n\n#{s} " if BlackStack::Deployer.show_output
-          output = node.ssh.exec!(s) 
-          l.log "\n\nOutput:\n-------\n\n#{output}" if BlackStack::Deployer.show_output
-          l.logf('done tracing.') if BlackStack::Deployer.show_output
-
-          # validation: at least one of the matches should happen
-          if self.matches.size > 0 && !self.background
-            i = 0
-            self.matches.each do |m|
-              if m.validate(output).size == 0 # no errors 
-                i += 1
+        elsif self.command.is_a?(String)      
+          s = self.command.dup
+      
+          l.logs "Replacing merge-tags... "
+          s.scan(/%[a-zA-Z0-9\_]+%/).uniq.each do |p|
+            l.logs "Replacing #{p.blue}... "
+            if p == '%timestamp%' # reserved parameter
+              # TODO: move this to a timestamp function on blackstack-core
+              s.gsub!(p, Time.now.to_s.gsub(/\D/, '')) 
+            else
+              if n.parameters.has_key?(p.gsub(/%/, '').to_sym)
+                s.gsub!(p, n.parameters[p.gsub(/%/, '').to_sym].to_s)
+              else
+                raise "The parameter #{p} does not exist in the node descriptor #{n.parameters.to_s}"
               end
             end
-            errors << "Command output doesn't match with any of the :matches" if i == 0
-          end # if self.matches.size > 0 
-          
-          # validation: no one of the nomatches should happen
-          self.nomatches.each do |m|
-            errors += m.validate(output)
-          end
+            l.logf 'done'.green
+          end      
+          l.logf 'done'.green
+      
+          l.logs "Running command... "
+          n.ssh.exec!(s)
+          l.logf 'done'.green
         end # elsif code.is_a?(String)
-
-        # return a hash descriptor of the command result 
-        {
-          :command => self.command,
-          :code => s,
-          :output => output,
-          :errors => errors,
-        }
-      end # def run(node)
+      end # def run(n)
     end # module CommandModule
-
-    # define attributes and methods of a command's match
-    module MatchModule
-      attr_accessor :match
-
-      def self.descriptor_errors(m)
-        errors = []
-        # validate the match is a regular expresion
-        errors << "The match is not a regex" unless m.is_a?(Regexp)
-        # 
-        errors.uniq
-      end # def self.descriptor_error(h)
-
-      def initialize(h)
-        errors = BlackStack::Deployer::MatchModule.descriptor_errors(h)
-        raise "The node descriptor is not valid: #{errors.uniq.join(".\n")}" if errors.length > 0
-        self.match = h
-      end
-
-      def to_hash
-        h = {}
-        h[:match] = self.match
-        h
-      end
-
-      def validate(output)
-        errors = []
-        errors << "The output of the command does not match the regular expression #{self.match.inspect}" unless output.match(self.match)
-        errors
-      end
-    end # module MatchModule
-
-    # define attributes and methods of a command's nomatch
-    module NoMatchModule
-      attr_accessor :nomatch, :error_description
-
-      def self.descriptor_errors(m)
-        errors = []
-        # validate the nomatch is a regular expresion
-        errors << "Each nomatch is not a regex nor a hash" unless m.is_a?(Hash) || m.is_a?(Regexp)
-        # if m is a hash
-        if m.is_a?(Hash)
-          # validate: the hash m has a key :nomatch
-          errors << "The hash descriptor of the nomatch does not have a key :nomatch" unless m.has_key?(:nomatch)
-          # validate: the value of m[:nomatch] is a string
-          errors << "The value of the key :nomatch is not a regex" unless m[:nomatch].is_a?(Regexp)
-          # validate: the hash m has a key :error_description
-          errors << "The hash descriptor of the nomatch does not have a key :error_description" unless m.has_key?(:error_description)
-          # validate: the value of m[:error_description] is a string
-          errors << "The value of the key :error_description is not a string" unless m[:error_description].is_a?(String)
-        end # if m.is_a?(Hash)
-        # 
-        errors.uniq
-      end # def self.descriptor_error(h)
-
-      def initialize(h)
-        errors = BlackStack::Deployer::NoMatchModule.descriptor_errors(h)
-        raise "The node descriptor is not valid: #{errors.uniq.join(".\n")}" if errors.length > 0
-        self.nomatch = h[:nomatch]
-        self.error_description = h[:error_description]
-      end
-
-      def to_hash
-        h = {}
-        h[:nomatch] = self.nomatch
-        h[:error_description] = self.error_description
-        h
-      end
-
-      def validate(output)
-        errors = []
-        if !self.error_description.nil?
-          errors << self.error_description if output.match(self.nomatch)
-        else
-          errors << "The output of the command matches the regular expression #{self.nomatch.inspect}" if output.match(self.nomatch)
-        end
-        errors
-      end
-
-    end # module NoMatchModule
-
 
     # TODO: declare these classes (stub and skeleton) using blackstack-rpc
     #
@@ -539,20 +274,12 @@ module BlackStack
     class Routine
       include BlackStack::Deployer::RoutineModule
     end # class Routine
-
-    class Match
-      include BlackStack::Deployer::MatchModule
-    end # class Match
-
-    class NoMatch
-      include BlackStack::Deployer::NoMatchModule
-    end # class NoMatch
   
     # add a node to the list of nodes.
     def self.add_node(h)
       errors = BlackStack::Deployer::NodeModule.descriptor_errors(h)
       raise errors.join(".\n") unless errors.empty?
-      @@nodes << BlackStack::Deployer::Node.new(h, @@logger)
+      @@nodes << BlackStack::Deployer::Node.new(h)
     end # def
 
     # add an array of nodes to the list of nodes.
@@ -589,9 +316,10 @@ module BlackStack
       @@routines.clear
       BlackStack::Deployer.add_routines(a)
     end # def
-      
+         
     # running a routine on a node
-    def self.run_routine(node_name, routine_name)
+    def self.run_routine(node_name, routine_name, l=nil)
+      l = BlackStack::DummyLogger.new(nil) if l.nil?
       errors = []
 
       # find the node with the value node_name in the key :name
@@ -608,24 +336,23 @@ module BlackStack
 
       # raise exception if any error has been found
       raise "The routine #{routine_name} cannot be run on the node #{node_name}: #{errors.uniq.join(".\n")}" if errors.length > 0
-#puts 'a'
+
       # connect the node
-      #self.logger.logs "Connecting to node #{n.name}... "
+      l.logs "Connecting to node #{n.name}... "
       n.connect
-      #self.logger.done
-#puts 'b'
+      l.done
+
       # run the routine
-      #self.logger.logs "Running routine #{r.name}... "
-      r.run(n)
-      #self.logger.done
-#puts 'c' 
+      l.logs "Running routine #{r.name}... "
+      r.run(n, l)
+      l.done
+
       # disconnect the node
-      #self.logger.logs "Disconnecting from node #{n.name}... "
+      l.logs "Disconnecting from node #{n.name}... "
       n.disconnect
-      #self.logger.done
-        
-    end # def
-      
+      l.done        
+    end # def self.run_routine
+
     module DB
       LOCKFILE = './blackstack-deployer.lock'
       @@checkpoint = nil
@@ -689,8 +416,8 @@ module BlackStack
       # Reference: https://stackoverflow.com/questions/64066344/import-large-sql-files-with-ruby-sequel-gem
       # This method is called by `BlackStack::Deployer::db_execute_file` if the filename matches with `/\.sentences\./`. 
       # This method should not be called directly by user code.
-      def self.execute_sentences(sql, chunk_size=200)      
-        tlogger = BlackStack::Deployer::logger
+      def self.execute_sentences(sql, chunk_size=200, l=nil)      
+        l = BlackStack::DummyLogger.new(nil) if l.nil?
 
         # Fix issue: Ruby `split': invalid byte sequence in UTF-8 (ArgumentError)
         # Reference: https://stackoverflow.com/questions/11065962/ruby-split-invalid-byte-sequence-in-utf-8-argumenterror
@@ -704,69 +431,69 @@ module BlackStack
         sql.gsub!("\u0000", "")
 
         # Get the array of sentences
-        tlogger.logs "Splitting the sql sentences... "
+        l.logs "Splitting the sql sentences... "
         sentences = sql.split(/;/i) 
-        tlogger.logf "done (#{sentences.size})"
+        l.logf "done (#{sentences.size})"
 
         # Chunk the array into parts of chunk_size elements
         # Reference: https://stackoverflow.com/questions/2699584/how-to-split-chunk-a-ruby-array-into-parts-of-x-elements
-        tlogger.logs "Bunlding the array of sentences into chunks of #{chunk_size} each... "
+        l.logs "Bunlding the array of sentences into chunks of #{chunk_size} each... "
         chunks = sentences.each_slice(chunk_size).to_a
-        tlogger.logf "done (#{chunks.size})"
+        l.logf "done (#{chunks.size})"
 
         chunk_number = -1
         chunks.each { |chunk|
           chunk_number += 1
           statement = chunk.join(";\n").to_s.strip
-          tlogger.logs "lines #{chunk_size*chunk_number+1} to #{chunk_size*chunk_number+chunk.size} of #{sentences.size}... "
+          l.logs "lines #{chunk_size*chunk_number+1} to #{chunk_size*chunk_number+chunk.size} of #{sentences.size}... "
           begin
             @@db.execute(statement) #if statement.to_s.strip.size > 0
-            tlogger.done
+            l.done
           rescue => e
-            tlogger.logf e.to_s 
+            l.logf e.to_s 
             raise "Error executing statement: #{statement}\n#{e.message}"
           end
         }
-        tlogger.done
+        l.done
       end # def db_execute_sql_sentences_file
 
       # Run a series of `.sql` files with updates to the database.
       #
-      def self.deploy(save_checkpoints=false, lockfilename=BlackStack::Deployer::DB::LOCKFILE)
-        tlogger = BlackStack::Deployer::logger
+      def self.deploy(save_checkpoints=false, lockfilename=BlackStack::Deployer::DB::LOCKFILE, l=nil)
+        l = BlackStack::DummyLogger.new(nil) if l.nil?
         # get list of `.sql` files in the directory `sql_path`, with a name higher than `last_filename`, sorted by name.
         Dir.entries(@@folder).select { 
           |filename| filename =~ /\.sql$/ && filename > @@checkpoint.to_s
         }.uniq.sort.each { |filename|
           fullfilename = "#{@@folder}/#{filename}"
 
-          tlogger.logs "#{fullfilename}... "
+          l.logs "#{fullfilename}... "
           BlackStack::Deployer::DB::execute_sentences( File.open(fullfilename).read )
-          tlogger.done
+          l.done
 
-          tlogger.logs "Updating checkpoint... "
+          l.logs "Updating checkpoint... "
           BlackStack::Deployer::DB::set_checkpoint filename
-          tlogger.done
+          l.done
 
-          tlogger.logs 'Saving checkpoint... '
+          l.logs 'Saving checkpoint... '
           if save_checkpoints
             BlackStack::Deployer::DB::save_checkpoint(lockfilename)
-            tlogger.done
+            l.done
           else
-            tlogger.logf 'disabled'
+            l.logf 'disabled'
           end
         }
       end # def
     end # module DB
 
     # deploying all db-updates and run all routines on all nodes
-    def self.deploy()
-      tlogger = BlackStack::Deployer::logger
+    def self.deploy(routine_name=nil, l=nil)
+      l = BlackStack::DummyLogger.new(nil) if l.nil?
 
       @@nodes.each { |n|
-        tlogger.logs "Node #{n.name}... "
-        n.deploy()
-        tlogger.done
+        l.logs "Node #{n.name}... "
+        n.deploy(routine_name, l)
+        l.done
       }
     end # def
 

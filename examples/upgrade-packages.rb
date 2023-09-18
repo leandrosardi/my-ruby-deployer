@@ -4,14 +4,15 @@ require_relative '../lib/deployer'
 
 # routines
 BlackStack::Deployer::add_routine({
-  :name => 'change-hostname',
+  :name => 'upgrade-packages',
   :commands => [
     { 
         :command => '
-            echo "%name%" > /etc/hostname
+            echo "Upgrading packages..." >> /tmp/upgrade-packages.log 2>&1
+            apt -y update >> /tmp/upgrade-packages.log 2>&1
+            echo "Upgrading packages..." >> /tmp/upgrade-packages.log 2>&1
+            apt -y upgrade >> /tmp/upgrade-packages.log 2>&1
         ', 
-    }, { 
-        :command => :reboot
     },
   ],
 });
@@ -24,7 +25,7 @@ BlackStack::Deployer::add_nodes([{
     :ssh_username => 'leandro',
     :ssh_password => '2404',
     :ssh_port => 22,
-    :deployment_routine => 'change-hostname',
+    :deployment_routine => 'upgrade-packages',
 }])
 
 # deploy
