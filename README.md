@@ -15,22 +15,14 @@ BlackStack::Deployer.deploy()
 
 ## Outline
 
-- [1. Getting Started](#1-getting-started)
-- [2. Adding Validations](#2-adding-validations)
-- [3. Defining Node Profiles](#3-defining-node-profiles)
-- [4. Running Database Updates](#4-running-database-updates)
-- [5. Reprocessing Database Updates](#5-reprocessing-database-updates)
-- [6. Advanced Features](#6-advanced-features)
-	- [6.1. Requesting node reboot](#61-requesting-node-reboot)
-	- [6.2. Pass routine parameters](#62-pass-routine-parameters)
-	- [6.3. Calling sub-routines](#63-calling-sub-routines)
-	- [6.4. Resuming database deploying from last checkpoint](#64-resuming-database-deploying-from-last-checkpoint)
-	- [6.5. Running Commands with `sudo` rights](#65-running-commands-with-sudo-rights)
-  - [6.6. Showing Commands Output](#66-showing-commands-output)
-  - [6.7. Running Commands in Background](#67-running-commands-in-background)
-  - [6.8. Checking Command Code](#68-checking-command-code)
-
-- [7. Dependencies](#7-dependencies)
+- 1. [Getting Started](#1-getting-started)
+- 2. [Pre-Defined Routines](#2-pre-defined-routines)
+- 3. [Default Routines](#3-default-routines)
+- 4. [Run a Routine for a Specific Node](#4-run-a-routine-for-a-specific-node)
+- 5. [Running Database Updates](#5-running-database-updates)
+- 6. [Reprocessing Database Updates](6-reprocessing-database-updates)
+- 7. [Advanced Features](#7-advanced-features)
+- 8. [Dependencies](#8-dependencies)
 
 ## 1. Getting Started
 
@@ -238,7 +230,7 @@ BlackStack::Deployer::DB::deploy();
 
 Files will be sorted by name, and processed following such an order.
 
-## 5. Reprocessing Database Updates
+## 6. Reprocessing Database Updates
 
 It is a good practice that any `.sql` file can be reprocessed without raising any exception.
 
@@ -260,11 +252,11 @@ INSERT INTO country (id, code, name)
 VALUES ('1fde0820-ae46-4687-ab4b-d8196f6e5bd0', 'ar', 'Argentina') ON CONFLICT DO NOTHING;
 ```
 
-## 6. Advanced Features
+## 7. Advanced Features
 
 There are some advanced features that make **deployer** more versatile.
 
-### 6.1. Requesting node reboot 
+### 7.1. Requesting node reboot 
 
 You can request node reboot as part of a routine. 
 
@@ -279,7 +271,7 @@ BlackStack::Deployer::add_routines([{
 }]);
 ```
 
-### 6.2. Pass routine parameters
+### 7.2. Pass routine parameters
 
 Your can define parameters parameters between `%` chars, as is shown in the code below.
 
@@ -307,7 +299,7 @@ BlackStack::Deployer::add_nodes([{
 }])
 ```
 
-### 6.3. Calling sub-routines
+### 7.3. Calling sub-routines
 
 You can request the execution of a routine as part of a bigger routine. 
 
@@ -322,7 +314,7 @@ BlackStack::Deployer::add_routines([{
 }]);
 ```
 
-### 6.4. Resuming database deploying from last checkpoint
+### 7.4. Resuming database deploying from last checkpoint
 
 Usually, the first files in the `sql` folder are regrding the creation of the schema and the seed records.
 
@@ -342,7 +334,7 @@ BlackStack::Deployer::DB::enable_checkpoints(true);
 # => true
 ```
 
-### 6.5. Running Commands with `sudo` rights
+### 7.5. Running Commands with `sudo` rights
 
 You can use the `:sudo` parameter to run a command with `sudo` rights.
 
@@ -404,7 +396,7 @@ echo '<root password here>' | sudo -S su root -c '
 ' 
 ```
 
-### 6.6. Showing Commands Output
+### 7.6. Showing Commands Output
 
 You can check if a command ran successfully using the `:matches` and `:nomatches` parameters.
 
@@ -416,7 +408,7 @@ Add the line below to get your deployment process showing the output of each com
 BlackStack::Deployer.set_show_output(true)
 ```
 
-### 6.7. Running Commands in Background
+### 7.7. Running Commands in Background
 
 The `:background` parameter is used to run a command and don't wait it to finish.
 
@@ -488,7 +480,7 @@ nohup ruby app.rb port=%web_port% > /dev/null 2>&1 &
 
 4. If the `:show_output` parameter is activated, the `:background` parameter will be ignored.
 
-### 6.8. Checking Command Code
+### 7.8. Checking Command Code
 
 If you want to know exactly how a command will be exectued after apply the modification regarding the parmaeters listed above, just run this line of code:
 
@@ -496,7 +488,7 @@ If you want to know exactly how a command will be exectued after apply the modif
 BlackStack::Deployer::routines[0].commands[0].code
 ```
 
-## 7. Dependencies
+## 8. Dependencies
 
 **Deployer** uses
 
