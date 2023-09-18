@@ -1,8 +1,8 @@
 ![logo](logo.png)
 
-# Deployer
+# My Ruby Deployer
 
-**Deployer** automates what you already know how to do manually, but in a repeatable, scalable fashion. There is no magic here!
+**My Ruby Deployer** (or just **Deployer**) automates what you already know how to do manually, but in a repeatable, scalable fashion. There is no magic here!
 
 ```ruby
 # deploy new version
@@ -15,14 +15,14 @@ BlackStack::Deployer.deploy()
 
 ## Outline
 
-- 1. [Getting Started](#1-getting-started)
-- 2. [Pre-Defined Routines](#2-pre-defined-routines)
-- 3. [Default Routines](#3-default-routines)
-- 4. [Run a Routine for a Specific Node](#4-run-a-routine-for-a-specific-node)
-- 5. [Running Database Updates](#5-running-database-updates)
-- 6. [Reprocessing Database Updates](6-reprocessing-database-updates)
-- 7. [Advanced Features](#7-advanced-features)
-- 8. [Dependencies](#8-dependencies)
+1. [Getting Started](#1-getting-started)
+2. [Pre-Defined Routines](#2-pre-defined-routines)
+3. [Default Routines](#3-default-routines)
+4. [Run a Routine for a Specific Node](#4-run-a-routine-for-a-specific-node)
+5. [Running Database Updates](#5-running-database-updates)
+6. [Reprocessing Database Updates](6-reprocessing-database-updates)
+7. [Advanced Features](#7-advanced-features)
+8. [Dependencies](#8-dependencies)
 
 ## 1. Getting Started
 
