@@ -354,7 +354,7 @@ module BlackStack
     end # def self.run_routine
 
     module DB
-      LOCKFILE = './blackstack-deployer.lock'
+      LOCKFILE = './my-ruby-deployer.lock'
       @@checkpoint = nil
       @@superhuser = nil
       @@ndb = nil
