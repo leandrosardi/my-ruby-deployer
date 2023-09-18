@@ -1,6 +1,6 @@
-![logo](logo.png)
-
 ![GitHub issues](https://img.shields.io/github/issues/leandrosardi/my-ruby-deployer) ![GitHub](https://img.shields.io/github/license/leandrosardi/my-ruby-deployer) ![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/leandrosardi/my-ruby-deployer) ![GitHub last commit](https://img.shields.io/github/last-commit/leandrosardi/my-ruby-deployer)
+
+![logo](logo.png)
 
 # My Ruby Deployer
 
