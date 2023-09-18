@@ -1,6 +1,6 @@
 # Example script of connecting to an AWS/EC2 instance using a key file; and running a command.
 
-require_relative '../lib/my-ruby-deployer'
+require 'my-ruby-deployer'
 
 # routines
 BlackStack::Deployer::add_routine({
