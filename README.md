@@ -315,7 +315,7 @@ You can request the execution of a routine as part of a bigger routine.
 BlackStack::Deployer::add_routines([{
   :name => 'installation',
   :commands => [
-    { :command => :change-server-name },
+    { :command => :'change-server-name' },
     { :command => :reboot },
   ],
 }]);
