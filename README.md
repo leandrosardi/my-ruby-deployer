@@ -15,32 +15,33 @@ BlackStack::Deployer.deploy()
 
 **Deployer** has been written in Ruby, but it can easily be used to deploy any language.
 
-## Outline
+**Outline**
 
-1. [Getting Started](#1-getting-started)
-2. [Pre-Defined Routines](#2-pre-defined-routines)
-3. [Default Routines](#3-default-routines)
-4. [Run a Routine for a Specific Node](#4-run-a-routine-for-a-specific-node)
-5. [Running Database Updates](#5-running-database-updates)
-6. [Reprocessing Database Updates](6-reprocessing-database-updates)
-7. [Advanced Features](#7-advanced-features)
-8. [Dependencies](#8-dependencies)
+1. [Installation](#1-installation)
+2. [Getting Started](#2-getting-started)
+3. [Built-In Routines](#3-built-in-routines)
+4. [Default Routines](#4-default-routines)
+5. [Custom Routines](#5-custom-routines)
+6. [Database Updates](#6-database-updates)
+7. [Reprocessing](#7-reprocessing)
+8. [Advanced Features](#8-advanced-features)
+9. [Dependencies](#9-dependencies)
 
-## 1. Getting Started
-
-**Step 1:** Install Deployer.
+## 1. Installation
 
 ```bash 
 gem install my-ruby-deployer
 ```
 
-**Step 2:** Require **my-ruby-deployer**.
+## 2. Getting Started
+
+**Step 1:** Require **my-ruby-deployer**.
 
 ```ruby
 require 'my-ruby-deployer'
 ```
 
-**Step 3:** Define a Deployment Routine.
+**Step 2:** Define a Deployment Routine.
 
 ```ruby
 # routines
@@ -93,7 +94,7 @@ BlackStack::Deployer::add_routine({
 });
 ```
 
-**Step 4:** Define your fleet of computers (nodes).
+**Step 3:** Define your fleet of computers (nodes).
 
 ```ruby
 BlackStack::Deployer::add_nodes([{
@@ -108,13 +109,13 @@ BlackStack::Deployer::add_nodes([{
 }])
 ```
 
-**Step 5:** Run a deployment for all your nodes
+**Step 3:** Run a deployment for all your nodes
 
 ```ruby
 BlackStack::Deployer.deploy('upgrade-packages')
 ```
 
-## 2. Pre-Defined Routines
+## 3. Built-In Routines
 
 The only name that you can't assign to a routine `'reboot'`, because it is reserved as a native routine of **my-ruby-deployer**.
 
@@ -136,7 +137,9 @@ BlackStack::Deployer::add_routine({
 });
 ```
 
-## 3. Default Routines
+## 4. Default Routines
+
+**Step 1:** Define what is the routine you want to run on each node.
 
 ```ruby
 BlackStack::Deployer::add_nodes([{
@@ -153,19 +156,21 @@ BlackStack::Deployer::add_nodes([{
 }])
 ```
 
-**Step 5:** Run a deployment for all your nodes
+**Step 2:** Run a deployment for all your nodes
 
 ```ruby
 BlackStack::Deployer.deploy # it will use the default routine of each node
 ```
 
-## 4. Run a Routine for a Specific Node
+## 5. Custom Routines
+
+If you want to run another routine for a node, you can do it.
 
 ```ruby
 BlackStack::Deployer.run_routine(node_name, routine_name)
 ```
 
-## 5. Running Database Updates
+## 6. Database Updates
 
 This feature works with any RDBMS supported by [Sequel](https://sequel.jeremyevans.net/).
 
@@ -232,7 +237,7 @@ BlackStack::Deployer::DB::deploy();
 
 Files will be sorted by name, and processed following such an order.
 
-## 6. Reprocessing Database Updates
+## 7. Reprocessing
 
 It is a good practice that any `.sql` file can be reprocessed without raising any exception.
 
@@ -254,11 +259,11 @@ INSERT INTO country (id, code, name)
 VALUES ('1fde0820-ae46-4687-ab4b-d8196f6e5bd0', 'ar', 'Argentina') ON CONFLICT DO NOTHING;
 ```
 
-## 7. Advanced Features
+## 8. Advanced Features
 
 There are some advanced features that make **my-ruby-deployer** more versatile.
 
-### 7.1. Requesting node reboot 
+### 8.1. Requesting node reboot 
 
 You can request node reboot as part of a routine. 
 
@@ -273,7 +278,7 @@ BlackStack::Deployer::add_routines([{
 }]);
 ```
 
-### 7.2. Pass routine parameters
+### 8.2. Pass routine parameters
 
 Your can define parameters parameters between `%` chars, as is shown in the code below.
 
@@ -301,7 +306,7 @@ BlackStack::Deployer::add_nodes([{
 }])
 ```
 
-### 7.3. Calling sub-routines
+### 8.3. Calling sub-routines
 
 You can request the execution of a routine as part of a bigger routine. 
 
@@ -316,7 +321,7 @@ BlackStack::Deployer::add_routines([{
 }]);
 ```
 
-### 7.4. Resuming database deploying from last checkpoint
+### 8.4. Resuming database deploying from last checkpoint
 
 Usually, the first files in the `sql` folder are regrding the creation of the schema and the seed records.
 
@@ -336,161 +341,7 @@ BlackStack::Deployer::DB::enable_checkpoints(true);
 # => true
 ```
 
-### 7.5. Running Commands with `sudo` rights
-
-You can use the `:sudo` parameter to run a command with `sudo` rights.
-
-**Example:** The routine below is aimed to stop your webserver by killing any `puma` and any `ruby` processes.
-
-```ruby
-# setup deploying rutines
-BlackStack::Deployer::add_routine({
-  :name => 'stop-mysaas',
-    :commands => [
-      { 
-        # kill any processes line matching with /puma/, except the `grep` command that I am using to find such processes.
-        #
-        # kill any processes line matching with /ruby/, except the process where this command is running, and except the `grep` command that I am using to find such processes.
-        #
-        # reference: https://superuser.com/questions/49114/kill-all-processes-of-a-user-except-a-few-in-linux
-        :command => "
-          ps ax | grep puma | grep -v grep | cut -b3-7 | xargs -t kill;
-          ps ax | grep ruby | grep -v grep | grep -v #{Process.pid} | cut -b3-7 | xargs -t kill; 
-        ",
-      },  
-  ],
-});
-```
-
-If you execute `BlackStack::Deployer::routines[0].commands[0].code`, you will see this script:
-
-```bash
-ps ax | grep puma | grep -v grep | cut -b3-7 | xargs -t kill;
-ps ax | grep ruby | grep -v grep | grep -v <id of running process> | cut -b3-7 | xargs -t kill; 
-```
-
-Probably, such a routine will fail because of a permissions matter.
-
-To avoid this problem, you can add the `:sudo` parameter.
-
-```ruby
-# setup deploying rutines
-BlackStack::Deployer::add_routine({
-  :name => 'stop-mysaas',
-    :commands => [
-      { 
-        :command => "
-          ps ax | grep puma | grep -v grep | cut -b3-7 | xargs -t kill;
-          ps ax | grep ruby | grep -v grep | grep -v #{Process.pid} | cut -b3-7 | xargs -t kill; 
-        ",
-        :sudo => true,
-      },  
-  ],
-});
-```
-
-If you execute `BlackStack::Deployer::routines[0].commands[0].code`, you will see this script:
-
-```bash
-echo '<root password here>' | sudo -S su root -c '
-  ps ax | grep puma | grep -v grep | cut -b3-7 | xargs -t kill;
-  ps ax | grep ruby | grep -v grep | grep -v <id of running process> | cut -b3-7 | xargs -t kill;
-' 
-```
-
-### 7.6. Showing Commands Output
-
-You can check if a command ran successfully using the `:matches` and `:nomatches` parameters.
-
-If the command fails with any error that you didn't incldude there, the command will report that finished successfully even if it didn't.
-
-Add the line below to get your deployment process showing the output of each command.
-
-```ruby
-BlackStack::Deployer.set_show_output(true)
-```
-
-### 7.7. Running Commands in Background
-
-The `:background` parameter is used to run a command and don't wait it to finish.
-
-**Example:** The routine below starts a Ruby-Sinatra webserver.
-
-```ruby
-BlackStack::Deployer::add_routine({
-  :name => 'start-mysaas',
-  :commands => [
-    { 
-      :command => "
-        source /home/%ssh_username%/.rvm/scripts/rvm; rvm install 3.1.2; rvm --default use 3.1.2;
-        cd /home/%ssh_username%/code/mysaas;
-        export RUBYLIB=/home/%ssh_username%/code/mysaas;
-        nohup ruby app.rb port=%web_port%;
-      ",
-    }, 
-  ], 
-});
-```
-
-If you execute `BlackStack::Deployer::routines[0].commands[0].code`, you will see this script:
-
-```bash
-source /home/%ssh_username%/.rvm/scripts/rvm; rvm install 3.1.2; rvm --default use 3.1.2;
-cd /home/%ssh_username%/code/mysaas;
-export RUBYLIB=/home/%ssh_username%/code/mysaas;
-nohup ruby app.rb port=%web_port%;
-```
-
-Such a script will hang the terminal, with the webserver listening.
-
-The solution is using the `:background` parameter as is shown in the code below:
-
-```ruby
-BlackStack::Deployer::add_routine({
-  :name => 'start-mysaas',
-  :commands => [
-    { 
-      :command => "
-        source /home/%ssh_username%/.rvm/scripts/rvm; rvm install 3.1.2; rvm --default use 3.1.2;
-        cd /home/%ssh_username%/code/mysaas;
-        export RUBYLIB=/home/%ssh_username%/code/mysaas;
-        nohup ruby app.rb port=%web_port%;
-      ",
-      :background => true,
-    }, 
-  ], 
-});
-```
-
-The same script will be modified to run each line in background.
-If you execute `BlackStack::Deployer::routines[0].commands[0].code`, you will see this script:
-
-```bash
-source /home/%ssh_username%/.rvm/scripts/rvm; rvm install 3.1.2; rvm --default use 3.1.2 > /dev/null 2>&1;
-cd /home/%ssh_username%/code/mysaas > /dev/null 2>&1;
-export RUBYLIB=/home/%ssh_username%/code/mysaas > /dev/null 2>&1;
-nohup ruby app.rb port=%web_port% > /dev/null 2>&1 &
-```
-
-**Note:**
-
-1. On each line, except the last one, the last `;` is replaced by ` > /dev/null 2>&1;`.
-
-2. In the last line, the last `;` is replaced by ` > /dev/null 2>&1 &`.
-
-3. Each line in the code of the `:command` parameter must finish with `;`. No comments allowed.
-
-4. If the `:show_output` parameter is activated, the `:background` parameter will be ignored.
-
-### 7.8. Checking Command Code
-
-If you want to know exactly how a command will be exectued after apply the modification regarding the parmaeters listed above, just run this line of code:
-
-```ruby
-BlackStack::Deployer::routines[0].commands[0].code
-```
-
-## 8. Dependencies
+## 9. Dependencies
 
 **Deployer** uses
 
@@ -501,4 +352,18 @@ BlackStack::Deployer::routines[0].commands[0].code
 
 The logo has been taken from [here](https://www.shareicon.net/space-exploration-transport-rocket-ship-rocket-space-ship-rocket-silhouette-rocket-ship-launch-669455).
 
+## Versioning
 
+We use [SemVer](http://semver.org/) for versioning. For the versions available, see the last [ruby gem](https://rubygems.org/gems/simple_command_line_parser). 
+
+## Authors
+
+* **Leandro Daniel Sardi** - *Initial work* - [LeandroSardi](https://github.com/leandrosardi)
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
+
+## Further Work
+
+Nothing yet.
