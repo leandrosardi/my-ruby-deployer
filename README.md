@@ -287,7 +287,7 @@ Your can define parameters parameters between `%` chars, as is shown in the code
 BlackStack::Deployer::add_routines([{
   :name => 'change-server-name',
   :commands => [
-    { :command => "echo '%name%' > /etc/hostname" },
+    { :command => "echo '%hostname%' > /etc/hostname" },
     { :command => :reboot },
   ],
 }]);
