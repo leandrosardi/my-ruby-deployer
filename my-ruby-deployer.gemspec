@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name        = 'my-ruby-deployer'
-  s.version     = '1.3.2'
-  s.date        = '2023-09-18'
+  s.version     = '1.3.3'
+  s.date        = '2024-03-28'
   s.summary     = "Deployer is a deployment automation tool built on Ruby and SSH."
   s.description = "Deployer automates what you already know how to do manually, but in a repeatable, scalable fashion. There is no magic here!
 Deployer dutifully connects to your server(s) via SSH and executes the steps necessary to deploy your project. 
