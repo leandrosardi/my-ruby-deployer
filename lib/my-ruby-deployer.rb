@@ -147,14 +147,14 @@ module BlackStack
         h
       end
 
-      def run(node, l=nil)
+      def run(node, l=nil, params={})
         l = BlackStack::DummyLogger.new(nil) if l.nil?
         l.logs "Running routine #{self.name.blue} on node #{node.name.blue}... "
         i = 0
         self.commands.each do |c|
           i += 1
           l.logs "Command #{i.to_s.blue}... "
-          c.run(node, l)
+          c.run(node, l, params)
           l.logf 'done'.green
         end
         l.logf 'done'.green
@@ -210,7 +210,7 @@ module BlackStack
       # running pre-defined commands: :root
       # calling to other routines: :'change-name'
       # calling 
-      def run(n, l=nil)
+      def run(n, l=nil, params={})
         l = BlackStack::DummyLogger.new(nil) if l.nil?
 
         # if self.command is a symbol
@@ -224,7 +224,7 @@ module BlackStack
             # look for a routine with this name
             r = BlackStack::Deployer.routines.select { |r| r.name == self.command.to_s }.first
             if !r.nil?
-              r.run(n)
+              r.run(n, l, params)
             else
               raise "The routine #{self.command.to_s} does not exist"
             end
@@ -234,22 +234,26 @@ module BlackStack
         elsif self.command.is_a?(String)      
           s = self.command.dup
       
-          l.logs "Replacing merge-tags... "
+          #l.logs "Replacing merge-tags... "
           s.scan(/%[a-zA-Z0-9\_]+%/).uniq.each do |p|
-            l.logs "Replacing #{p.blue}... "
+            #l.logs "Replacing #{p.blue}... "
             if p == '%timestamp%' # reserved parameter
               # TODO: move this to a timestamp function on blackstack-core
               s.gsub!(p, Time.now.to_s.gsub(/\D/, '')) 
             else
+              # replace node parameters
               if n.parameters.has_key?(p.gsub(/%/, '').to_sym)
                 s.gsub!(p, n.parameters[p.gsub(/%/, '').to_sym].to_s)
+              # replace routine-call parameters
+              elsif params.has_key?(p.gsub(/%/, '').to_sym)
+                s.gsub!(p, params[p.gsub(/%/, '').to_sym].to_s)
               else
                 raise "The parameter #{p} does not exist in the node descriptor #{n.parameters.to_s}"
               end
             end
-            l.logf 'done'.green
+            #l.logf 'done'.green
           end      
-          l.logf 'done'.green
+          #l.logf 'done'.green
       
           l.logs "Running command... "
           n.ssh.exec!(s)
@@ -318,7 +322,7 @@ module BlackStack
     end # def
          
     # running a routine on a node
-    def self.run_routine(node_name, routine_name, l=nil)
+    def self.run_routine(node_name, routine_name, l=nil, params={})
       l = BlackStack::DummyLogger.new(nil) if l.nil?
       errors = []
 
@@ -344,7 +348,7 @@ module BlackStack
 
       # run the routine
       l.logs "Running routine #{r.name}... "
-      r.run(n, l)
+      r.run(n, l, params)
       l.done
 
       # disconnect the node
@@ -418,7 +422,7 @@ module BlackStack
       # This method should not be called directly by user code.
       def self.execute_sentences(sql, chunk_size=200, l=nil)      
         l = BlackStack::DummyLogger.new(nil) if l.nil?
-
+        
         # Fix issue: Ruby `split': invalid byte sequence in UTF-8 (ArgumentError)
         # Reference: https://stackoverflow.com/questions/11065962/ruby-split-invalid-byte-sequence-in-utf-8-argumenterror
         #
@@ -462,6 +466,7 @@ module BlackStack
       def self.deploy(save_checkpoints=false, lockfilename=BlackStack::Deployer::DB::LOCKFILE, l=nil)
         l = BlackStack::DummyLogger.new(nil) if l.nil?
         # get list of `.sql` files in the directory `sql_path`, with a name higher than `last_filename`, sorted by name.
+
         Dir.entries(@@folder).select { 
           |filename| filename =~ /\.sql$/ && filename > @@checkpoint.to_s
         }.uniq.sort.each { |filename|

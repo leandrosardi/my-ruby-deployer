@@ -19,7 +19,7 @@ BlackStack::Deployer.deploy()
 
 1. [Installation](#1-installation)
 2. [Getting Started](#2-getting-started)
-3. [Built-In Routines](#3-built-in-routines)
+3. [Advanced Routines](#3-advanced-routines)
 4. [Default Routines](#4-default-routines)
 5. [Custom Routines](#5-custom-routines)
 6. [Database Updates](#6-database-updates)
@@ -115,9 +115,11 @@ BlackStack::Deployer::add_nodes([{
 BlackStack::Deployer.deploy('upgrade-packages')
 ```
 
-## 3. Built-In Routines
+## 3. Advanced Routines
 
 The only name that you can't assign to a routine `'reboot'`, because it is reserved as a native routine of **my-ruby-deployer**.
+
+Also, you can use **node parameters** in your command. E.g.: `%name%`.
 
 **Example:**
 
@@ -164,10 +166,27 @@ BlackStack::Deployer.deploy # it will use the default routine of each node
 
 ## 5. Custom Routines
 
-If you want to run another routine for a node, you can do it.
+If you need to run another routine for a node more than its **default routine**, you can do it.
 
 ```ruby
 BlackStack::Deployer.run_routine(node_name, routine_name)
+```
+
+You can pass a [logger](https://github.com/leandrosardi/simple_cloud_logging) in order to trace the routine excution.
+
+```ruby
+l = BlackStack::LocalLogger.new('./deploy.log')
+BlackStack::Deployer.run_routine(node_name, routine_name, l)
+```
+
+Additonally to the **node parameeters**, you can also pass **parameters at a routine-call level**.
+
+```ruby
+l = BlackStack::LocalLogger.new('./deploy.log')
+BlackStack::Deployer.run_routine(node_name, 'update_extension', l, {
+  :extension_git_url => 'https://github.com/leandrosardi/pampa',
+  :extension_git_branch => 'main',
+})
 ```
 
 ## 6. Database Updates
