@@ -86,6 +86,61 @@ module BlackStack
         s = routine_name || self.deployment_routine
         BlackStack::Deployer::run_routine(self.name, s, l);
       end
+
+      # stop all the processes who run in this node
+      def stop(output_file='~/deployment.log')
+        s = '
+          echo "" >>'+output_file+' 2>&1
+          echo "-------------------------------------------------------------------------" >>'+output_file+' 2>&1
+          echo "Stopping at: `date`" >>'+output_file+' 2>&1
+
+          # Activate RVM
+          echo ""
+          echo "Killing processes '+self.parameters[:code_folder]+'..." >>'+output_file+' 2>&1      
+          ps ax | grep "'+self.parameters[:code_folder]+'" | grep -v postgres | grep -v grep | cut -b1-7 | xargs -t kill -9 >>'+output_file+' 2>&1
+        '
+        self.ssh.exec!(s)
+      end
+
+      # execute all the processes who run in this node
+      def start(output_file='~/deployment.log')
+        s = '
+          echo "" >>'+output_file+' 2>&1
+          echo "-------------------------------------------------------------------------" >>'+output_file+' 2>&1
+          echo "Starting at: `date`" >>'+output_file+' 2>&1
+
+          # Activate RVM
+          echo ""
+          echo "Activating RVM..." >>'+output_file+' 2>&1      
+          source /etc/profile.d/rvm.sh >>'+output_file+' 2>&1
+    
+          # Activate Ruby 3.1.2
+          echo ""
+          echo "Activate Ruby 3.1.2..." >>'+output_file+' 2>&1       
+          rvm --default use 3.1.2 >>'+output_file+' 2>&1
+          
+          # Set RUBYLIB
+          echo ""
+          echo "Set RUBYLIB..." >>'+output_file+' 2>&1     
+          export RUBYLIB='+self.parameters[:rubylib]+' >>'+output_file+' 2>&1
+          
+          # Change directory to RUBYLIB
+          echo ""
+          echo "Change directory to RUBYLIB..." >>'+output_file+' 2>&1      
+          cd $RUBYLIB >>'+output_file+' 2>&1'
+
+        self.parameters[:processes].each { |p|
+          s += '
+          # Change directory to RUBYLIB
+          echo ""
+          echo "Run '+p+'..." >>'+output_file+' 2>&1       
+          ruby $RUBYLIB/'+p+' 2>>'+output_file+' 1>>/dev/null &
+        '
+        }
+        
+        self.ssh.exec!(s)
+      end
+
     end # module NodeModule
 
     # define attributes and methods of a deployer routine
