@@ -24,7 +24,7 @@ module BlackStack
     module NodeModule
       attr_accessor :deployment_routine, :parameters
 
-      include BlackStack::Infrastructure::NodeModule
+      include Infrastructure::NodeModule
 
       def self.eth0_ip(insterface)
         ret = nil
@@ -188,7 +188,7 @@ module BlackStack
         self.name = h[:name]
         self.commands = []
         h[:commands].each do |c|
-          self.commands << BlackStack::Deployer::Command.new(c)
+          self.commands <<  Deployer::Command.new(c)
         end
       end
 
@@ -323,22 +323,22 @@ module BlackStack
     # These classes represents a node, without using connection to the database.
     # Use this class at the client side.
     class Node
-      include BlackStack::Deployer::NodeModule
+      include Deployer::NodeModule
     end # class Node
 
     class Command
-      include BlackStack::Deployer::CommandModule
+      include Deployer::CommandModule
     end # class Command
 
     class Routine
-      include BlackStack::Deployer::RoutineModule
+      include Deployer::RoutineModule
     end # class Routine
   
     # add a node to the list of nodes.
     def self.add_node(h)
       errors = BlackStack::Deployer::NodeModule.descriptor_errors(h)
       raise errors.join(".\n") unless errors.empty?
-      @@nodes << BlackStack::Deployer::Node.new(h)
+      @@nodes <<  Deployer::Node.new(h)
     end # def
 
     # add an array of nodes to the list of nodes.
@@ -359,7 +359,7 @@ module BlackStack
     def self.add_routine(h)
       errors = BlackStack::Deployer::RoutineModule.descriptor_errors(h)
       raise errors.join(".\n") unless errors.empty?
-      @@routines << BlackStack::Deployer::Routine.new(h)
+      @@routines <<  Deployer::Routine.new(h)
     end # def
 
     # add an array of routines to the list of routines.

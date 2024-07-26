@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name        = 'my-ruby-deployer'
-  s.version     = '1.3.4'
-  s.date        = '2024-03-29'
+  s.version     = '1.3.5'
+  s.date        = '2024-07-26'
   s.summary     = "Deployer is a deployment automation tool built on Ruby and SSH."
   s.description = "Deployer automates what you already know how to do manually, but in a repeatable, scalable fashion. There is no magic here!
 Deployer dutifully connects to your server(s) via SSH and executes the steps necessary to deploy your project. 
@@ -20,5 +20,5 @@ You can define those steps yourself, or by using pre-built task libraries provid
   #s.add_runtime_dependency 'websocket', '~> 1.2.8', '>= 1.2.8'
   #s.add_runtime_dependency 'json', '~> 2.3.0', '>= 2.3.0'
   s.add_runtime_dependency 'colorize', '~> 0.8.1', '>= 0.8.1'
-  s.add_runtime_dependency 'simple_cloud_logging', '~> 1.2.2', '>= 1.2.2'
+  s.add_runtime_dependency 'simple_cloud_logging', '~> 1.2.4', '>= 1.2.4'
 end
